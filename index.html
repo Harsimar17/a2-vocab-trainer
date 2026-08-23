@@ -1,38 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Deutscher Wortschatz — A2</title>
-
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
-
-  <style>
-    html, body, #root {
-      margin: 0;
-      min-height: 100%;
-      width: 100%;
-    }
-    body {
-      background: #F6F1E5;
-    }
-    * {
-      box-sizing: border-box;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deutscher Wortschatz — A2</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<style>
+html,body,#root{margin:0;min-height:100%;width:100%}
+body{background:#F6F1E5}
+*{box-sizing:border-box}
+</style>
 </head>
 <body>
-  <div id="root"></div>
-
-  <script type="text/babel">
+<div id="root"></div>
+<script type="text/babel">
 const { useState, useMemo, useCallback } = React;
-
 
 // ---------- FIREBASE ----------
 // Requires the Firebase compat SDKs loaded as <script> tags before this
@@ -429,17 +416,43 @@ function DirectionToggle({ direction, onChange }) {
   );
 }
 
-function Flashcards({ pool, direction }) {
+function NoRepeatToggle({ noRepeat, onChange }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center" }}>
+      <button
+        onClick={() => onChange(!noRepeat)}
+        style={{
+          fontFamily: "'Courier New', monospace",
+          fontSize: "11px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          padding: "6px 14px",
+          borderRadius: "12px",
+          border: `1px solid ${noRepeat ? "#3F7A55" : "#8a8372"}`,
+          background: noRepeat ? "#3F7A55" : "transparent",
+          color: noRepeat ? "#F6F1E5" : "#8a8372",
+          cursor: "pointer",
+        }}
+      >
+        {noRepeat ? "✓ no repeats" : "no repeats: off"}
+      </button>
+    </div>
+  );
+}
+
+function Flashcards({ pool, direction, noRepeat }) {
   const [order, setOrder] = useState(() => shuffle(pool.map((d) => d.id)));
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [done, setDone] = useState(false);
   const byId = useMemo(() => Object.fromEntries(ALL_DATA.map((d) => [d.id, d])), []);
 
   React.useEffect(() => {
     setOrder(shuffle(pool.map((d) => d.id)));
     setIdx(0);
     setFlipped(false);
-  }, [pool.length]);
+    setDone(false);
+  }, [pool.length, noRepeat]);
 
   React.useEffect(() => {
     setFlipped(false);
@@ -449,13 +462,39 @@ function Flashcards({ pool, direction }) {
     return <p style={{ textAlign: "center", color: "#8a8372" }}>No cards match this filter — pick at least one category above.</p>;
   }
 
+  const restart = () => {
+    setOrder(shuffle(pool.map((d) => d.id)));
+    setIdx(0);
+    setFlipped(false);
+    setDone(false);
+  };
+
+  if (done) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "40px 0" }}>
+        <div style={{ fontFamily: "Georgia, serif", fontSize: "22px", color: "#2b2620", textAlign: "center" }}>
+          All {order.length} / {order.length} cards done 🎉
+        </div>
+        <button onClick={restart} style={navBtnStyle}>⟲ start over</button>
+      </div>
+    );
+  }
+
   const card = byId[order[idx]];
   const front = promptText(card, direction);
   const back = answerText(card, direction);
 
   const next = () => {
     setFlipped(false);
-    setIdx((i) => (i + 1) % order.length);
+    if (idx + 1 >= order.length) {
+      if (noRepeat) {
+        setDone(true);
+      } else {
+        setIdx(0);
+      }
+    } else {
+      setIdx((i) => i + 1);
+    }
   };
   const prev = () => {
     setFlipped(false);
@@ -477,7 +516,7 @@ function Flashcards({ pool, direction }) {
           color: "#8a8372",
         }}
       >
-        CARD {idx + 1} / {order.length}
+        {noRepeat ? `${idx + 1} / ${order.length} attempted` : `CARD ${idx + 1} / ${order.length}`}
       </div>
 
       <div
@@ -586,8 +625,9 @@ const navBtnStyle = {
   cursor: "pointer",
 };
 
-function makeQuestion(pool) {
-  const correct = pool[Math.floor(Math.random() * pool.length)];
+function makeQuestion(pool, correctPool) {
+  const source = correctPool && correctPool.length > 0 ? correctPool : pool;
+  const correct = source[Math.floor(Math.random() * source.length)];
   const sameCat = pool.filter((d) => d.cat === correct.cat && d.id !== correct.id);
   const distractPool = (sameCat.length >= 3 ? sameCat : pool.filter((d) => d.id !== correct.id));
   const distractors = shuffle(distractPool).slice(0, 3);
@@ -595,23 +635,29 @@ function makeQuestion(pool) {
   return { correct, options };
 }
 
-function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, direction }) {
+function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, direction, noRepeat }) {
+  const [askedIds, setAskedIds] = useState(() => new Set());
   const [q, setQ] = useState(() => makeQuestion(pool));
   const [picked, setPicked] = useState(null);
   const [score, setScore] = useState({ right: 0, total: 0 });
   const [saved, setSaved] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const resetRound = React.useCallback(() => {
+    const fresh = new Set();
+    const nq = makeQuestion(pool);
+    if (noRepeat) fresh.add(nq.correct.id);
+    setAskedIds(fresh);
+    setQ(nq);
+    setPicked(null);
+    setDone(false);
+  }, [pool, noRepeat]);
 
   React.useEffect(() => {
-    setQ(makeQuestion(pool));
-    setPicked(null);
+    resetRound();
     setScore({ right: 0, total: 0 });
     setSaved(false);
-  }, [pool.length]);
-
-  React.useEffect(() => {
-    setQ(makeQuestion(pool));
-    setPicked(null);
-  }, [direction]);
+  }, [pool.length, noRepeat, direction]);
 
   if (pool.length < 4) {
     return <p style={{ textAlign: "center", color: "#8a8372" }}>Pick at least a couple categories above — need a few options to quiz from.</p>;
@@ -627,8 +673,21 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, direction }) {
   };
 
   const nextQ = () => {
-    setQ(makeQuestion(pool));
-    setPicked(null);
+    if (noRepeat) {
+      const remaining = pool.filter((d) => !askedIds.has(d.id));
+      if (remaining.length === 0) {
+        setDone(true);
+        setPicked(null);
+        return;
+      }
+      const nq = makeQuestion(pool, remaining);
+      setAskedIds((prev) => new Set(prev).add(nq.correct.id));
+      setQ(nq);
+      setPicked(null);
+    } else {
+      setQ(makeQuestion(pool));
+      setPicked(null);
+    }
   };
 
   const finishSession = () => {
@@ -637,6 +696,35 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, direction }) {
     setSaved(true);
     setScore({ right: 0, total: 0 });
   };
+
+  if (done) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "40px 0" }}>
+        <div style={{ fontFamily: "'Courier New', monospace", fontSize: "12px", letterSpacing: "0.1em", color: "#8a8372" }}>
+          SCORE {score.right} / {score.total}
+        </div>
+        <div style={{ fontFamily: "Georgia, serif", fontSize: "22px", color: "#2b2620", textAlign: "center" }}>
+          All {pool.length} / {pool.length} words done 🎉
+        </div>
+        <div style={{ display: "flex", gap: "10px" }}>
+          {score.total > 0 && (
+            <button
+              onClick={finishSession}
+              style={{
+                ...navBtnStyle,
+                background: saved ? "#3F7A55" : "transparent",
+                border: `1px solid ${saved ? "#3F7A55" : "#8a8372"}`,
+                color: saved ? "#F6F1E5" : "#8a8372",
+              }}
+            >
+              {saved ? "✓ saved" : "finish & save this round"}
+            </button>
+          )}
+          <button onClick={resetRound} style={navBtnStyle}>⟲ start over</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px" }}>
@@ -655,6 +743,20 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, direction }) {
           </span>
         )}
       </div>
+
+      {noRepeat && (
+        <div
+          style={{
+            fontFamily: "'Courier New', monospace",
+            fontSize: "11px",
+            letterSpacing: "0.08em",
+            color: "#8a8372",
+            marginTop: "-10px",
+          }}
+        >
+          {askedIds.size} / {pool.length} attempted
+        </div>
+      )}
 
       <div style={{ textAlign: "center" }}>
         <div style={{ marginBottom: "8px" }}><CatChip cat={q.correct.cat} /></div>
@@ -772,6 +874,7 @@ function App() {
   const [mode, setMode] = useState("flash");
   const [activeCats, setActiveCats] = useState(CATS);
   const [direction, setDirection] = useState("de-en");
+  const [noRepeat, setNoRepeat] = useState(false);
   const [ready, setReady] = useState(false);
   const [allTime, setAllTime] = useState({ right: 0, total: 0 });
   const [sessions, setSessions] = useState([]);
@@ -891,9 +994,10 @@ function App() {
         </div>
 
         <DirectionToggle direction={direction} onChange={setDirection} />
+        <NoRepeatToggle noRepeat={noRepeat} onChange={setNoRepeat} />
 
         <div style={{ marginTop: "6px" }}>
-          {mode === "flash" ? <Flashcards pool={pool} direction={direction} /> : <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} sessions={sessions} onSaveSession={handleSaveSession} direction={direction} />}
+          {mode === "flash" ? <Flashcards pool={pool} direction={direction} noRepeat={noRepeat} /> : <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} sessions={sessions} onSaveSession={handleSaveSession} direction={direction} noRepeat={noRepeat} />}
         </div>
       </div>
     </div>
@@ -901,7 +1005,6 @@ function App() {
 }
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(App));
-
-  </script>
+</script>
 </body>
 </html>

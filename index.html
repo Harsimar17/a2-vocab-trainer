@@ -8,22 +8,35 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 
   <style>
-    html, body, #root { margin: 0; min-height: 100%; width: 100%; }
-    body { background: #F6F1E5; }
-    * { box-sizing: border-box; }
+    html, body, #root {
+      margin: 0;
+      min-height: 100%;
+      width: 100%;
+    }
+    body {
+      background: #F6F1E5;
+    }
+    * {
+      box-sizing: border-box;
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
+
   <script type="text/babel">
 const { useState, useMemo, useCallback } = React;
 
 // ---------- FIREBASE ----------
+// Requires the Firebase compat SDKs loaded as <script> tags before this
+// component runs (they expose a global `firebase` object — no bundler/import
+// needed since this file ships as plain Babel-in-browser JS):
 const firebaseConfig = {
   apiKey: "AIzaSyBRzM4RvIBEbgmAhWHED57d4hE2MhvX4_Y",
   authDomain: "a2-vocab-trainer.firebaseapp.com",
@@ -706,10 +719,14 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession }) {
   );
 }
 
+// A single fixed record shared by every browser/device — since this trainer
+// is for one person only, there's no need for a separate identity per browser.
+const PROGRESS_DOC_ID = "harsimar-progress";
+
 function App() {
   const [mode, setMode] = useState("flash");
   const [activeCats, setActiveCats] = useState(CATS);
-  const [uid, setUid] = useState(null);
+  const [ready, setReady] = useState(false);
   const [allTime, setAllTime] = useState({ right: 0, total: 0 });
   const [sessions, setSessions] = useState([]);
 
@@ -719,11 +736,11 @@ function App() {
 
   const pool = useMemo(() => ALL_DATA.filter((d) => activeCats.includes(d.cat)), [activeCats]);
 
-  const loadSessions = useCallback((theUid) => {
+  const loadSessions = useCallback(() => {
     const fb = getFirebase();
-    if (!fb || !theUid) return;
+    if (!fb) return;
     fb.db
-      .collection("scores").doc(theUid).collection("sessions")
+      .collection("scores").doc(PROGRESS_DOC_ID).collection("sessions")
       .orderBy("timestamp", "desc")
       .limit(15)
       .get()
@@ -733,20 +750,20 @@ function App() {
       .catch((err) => console.error("loadSessions failed:", err.code || err.message || err));
   }, []);
 
-  // Sign in anonymously and load this browser's persisted score + past rounds
+  // Sign in anonymously (required by the security rules) then load the one shared record
   React.useEffect(() => {
     const fb = getFirebase();
     if (!fb) return; // Firebase SDK not loaded — app still works, just no persistence
     const unsub = fb.auth.onAuthStateChanged((user) => {
       if (user) {
-        setUid(user.uid);
-        fb.db.collection("scores").doc(user.uid).get().then((snap) => {
+        setReady(true);
+        fb.db.collection("scores").doc(PROGRESS_DOC_ID).get().then((snap) => {
           if (snap.exists) {
             const d = snap.data();
             setAllTime({ right: d.right || 0, total: d.total || 0 });
           }
         }).catch((err) => console.error("load allTime failed:", err.code || err.message || err));
-        loadSessions(user.uid);
+        loadSessions();
       }
     });
     fb.auth.signInAnonymously().catch(() => {});
@@ -757,8 +774,8 @@ function App() {
     setAllTime((prev) => {
       const next = { right: prev.right + (correct ? 1 : 0), total: prev.total + 1 };
       const fb = getFirebase();
-      if (fb && uid) {
-        fb.db.collection("scores").doc(uid).set(
+      if (fb && ready) {
+        fb.db.collection("scores").doc(PROGRESS_DOC_ID).set(
           {
             right: window.firebase.firestore.FieldValue.increment(correct ? 1 : 0),
             total: window.firebase.firestore.FieldValue.increment(1),
@@ -768,18 +785,18 @@ function App() {
       }
       return next;
     });
-  }, [uid]);
+  }, [ready]);
 
   const handleSaveSession = useCallback((score) => {
     const fb = getFirebase();
-    if (!fb || !uid) return;
+    if (!fb || !ready) return;
     const record = { right: score.right, total: score.total, cats: activeCats, timestamp: Date.now() };
     fb.db
-      .collection("scores").doc(uid).collection("sessions")
+      .collection("scores").doc(PROGRESS_DOC_ID).collection("sessions")
       .add(record)
-      .then(() => loadSessions(uid))
+      .then(() => loadSessions())
       .catch((err) => console.error("save session failed:", err.code || err.message || err));
-  }, [uid, activeCats, loadSessions]);
+  }, [ready, activeCats, loadSessions]);
 
   return (
     <div

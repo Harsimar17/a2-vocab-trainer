@@ -33,6 +33,7 @@
   <script type="text/babel">
 const { useState, useMemo, useCallback } = React;
 
+
 // ---------- FIREBASE ----------
 // Requires the Firebase compat SDKs loaded as <script> tags before this
 // component runs (they expose a global `firebase` object — no bundler/import
@@ -396,7 +397,39 @@ function FilterBar({ active, onToggle }) {
   );
 }
 
-function Flashcards({ pool }) {
+// direction: 'de-en' shows German, asks for English. 'en-de' shows English, asks for German.
+function promptText(card, direction) {
+  return direction === "en-de" ? card.en : card.de;
+}
+function answerText(card, direction) {
+  return direction === "en-de" ? card.de : card.en;
+}
+
+function DirectionToggle({ direction, onChange }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center" }}>
+      <button
+        onClick={() => onChange(direction === "de-en" ? "en-de" : "de-en")}
+        style={{
+          fontFamily: "'Courier New', monospace",
+          fontSize: "11px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          padding: "6px 14px",
+          borderRadius: "12px",
+          border: "1px solid #2b2620",
+          background: "transparent",
+          color: "#2b2620",
+          cursor: "pointer",
+        }}
+      >
+        {direction === "de-en" ? "Deutsch → English" : "English → Deutsch"}   ⇄
+      </button>
+    </div>
+  );
+}
+
+function Flashcards({ pool, direction }) {
   const [order, setOrder] = useState(() => shuffle(pool.map((d) => d.id)));
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -408,11 +441,17 @@ function Flashcards({ pool }) {
     setFlipped(false);
   }, [pool.length]);
 
+  React.useEffect(() => {
+    setFlipped(false);
+  }, [direction]);
+
   if (pool.length === 0) {
     return <p style={{ textAlign: "center", color: "#8a8372" }}>No cards match this filter — pick at least one category above.</p>;
   }
 
   const card = byId[order[idx]];
+  const front = promptText(card, direction);
+  const back = answerText(card, direction);
 
   const next = () => {
     setFlipped(false);
@@ -482,13 +521,13 @@ function Flashcards({ pool }) {
             <div
               style={{
                 fontFamily: "Georgia, serif",
-                fontSize: card.de.length > 28 ? "18px" : card.de.length > 16 ? "24px" : "30px",
+                fontSize: front.length > 28 ? "18px" : front.length > 16 ? "24px" : "30px",
                 lineHeight: 1.3,
                 color: "#2b2620",
                 textAlign: "center",
               }}
             >
-              {card.de}
+              {front}
             </div>
             <div style={{ fontFamily: "'Courier New', monospace", fontSize: "11px", color: "#b0a888" }}>
               tap to reveal
@@ -513,13 +552,13 @@ function Flashcards({ pool }) {
             <div
               style={{
                 fontFamily: "Georgia, serif",
-                fontSize: card.en.length > 28 ? "17px" : "22px",
+                fontSize: back.length > 28 ? "17px" : "22px",
                 lineHeight: 1.35,
                 color: "#F6F1E5",
                 textAlign: "center",
               }}
             >
-              {card.en}
+              {back}
             </div>
           </div>
         </div>
@@ -556,7 +595,7 @@ function makeQuestion(pool) {
   return { correct, options };
 }
 
-function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession }) {
+function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, direction }) {
   const [q, setQ] = useState(() => makeQuestion(pool));
   const [picked, setPicked] = useState(null);
   const [score, setScore] = useState({ right: 0, total: 0 });
@@ -568,6 +607,11 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession }) {
     setScore({ right: 0, total: 0 });
     setSaved(false);
   }, [pool.length]);
+
+  React.useEffect(() => {
+    setQ(makeQuestion(pool));
+    setPicked(null);
+  }, [direction]);
 
   if (pool.length < 4) {
     return <p style={{ textAlign: "center", color: "#8a8372" }}>Pick at least a couple categories above — need a few options to quiz from.</p>;
@@ -614,7 +658,7 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession }) {
 
       <div style={{ textAlign: "center" }}>
         <div style={{ marginBottom: "8px" }}><CatChip cat={q.correct.cat} /></div>
-        <div style={{ fontFamily: "Georgia, serif", fontSize: "26px", color: "#2b2620" }}>{q.correct.de}</div>
+        <div style={{ fontFamily: "Georgia, serif", fontSize: "26px", color: "#2b2620" }}>{promptText(q.correct, direction)}</div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "min(420px, 90vw)" }}>
@@ -629,6 +673,7 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession }) {
               bg = "#A5354A"; border = "#A5354A"; color = "#F6F1E5";
             }
           }
+          const optText = answerText(opt, direction);
           return (
             <button
               key={opt.id}
@@ -636,7 +681,7 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession }) {
               style={{
                 textAlign: "left",
                 fontFamily: "Georgia, serif",
-                fontSize: opt.en.length > 28 ? "13px" : "16px",
+                fontSize: optText.length > 28 ? "13px" : "16px",
                 padding: "12px 16px",
                 borderRadius: "4px",
                 border: `1px solid ${border}`,
@@ -645,7 +690,7 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession }) {
                 cursor: picked ? "default" : "pointer",
               }}
             >
-              {opt.en}
+              {optText}
             </button>
           );
         })}
@@ -726,6 +771,7 @@ const PROGRESS_DOC_ID = "harsimar-progress";
 function App() {
   const [mode, setMode] = useState("flash");
   const [activeCats, setActiveCats] = useState(CATS);
+  const [direction, setDirection] = useState("de-en");
   const [ready, setReady] = useState(false);
   const [allTime, setAllTime] = useState({ right: 0, total: 0 });
   const [sessions, setSessions] = useState([]);
@@ -844,8 +890,10 @@ function App() {
           ))}
         </div>
 
+        <DirectionToggle direction={direction} onChange={setDirection} />
+
         <div style={{ marginTop: "6px" }}>
-          {mode === "flash" ? <Flashcards pool={pool} /> : <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} sessions={sessions} onSaveSession={handleSaveSession} />}
+          {mode === "flash" ? <Flashcards pool={pool} direction={direction} /> : <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} sessions={sessions} onSaveSession={handleSaveSession} direction={direction} />}
         </div>
       </div>
     </div>

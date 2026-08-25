@@ -1,32 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#F6F1E5">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>Deutscher Wortschatz — A2</title>
-
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
-
-<style>
-html,body,#root{margin:0;min-height:100%;background:#F6F1E5}
-body{-webkit-tap-highlight-color:transparent}
-button{touch-action:manipulation}
-</style>
-</head>
-<body>
-<div id="root"></div>
-
-<script type="text/babel">
-const { useState, useMemo, useCallback } = React;
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#F6F1E5"><title>Deutscher Wortschatz — A2</title><script src="https://unpkg.com/react@18/umd/react.development.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script><script src="https://unpkg.com/@babel/standalone/babel.min.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script><style>html,body,#root{margin:0;min-height:100%;background:#F6F1E5}button{touch-action:manipulation}</style></head><body><div id="root"></div><script type="text/babel">const {useState,useMemo,useCallback}=React;
 // ---------- FIREBASE ----------
 // Requires the Firebase compat SDKs loaded as <script> tags before this
 // component runs (they expose a global `firebase` object — no bundler/import
@@ -315,21 +287,514 @@ const CATEGORY_META = {
   phrase: { label: "phrase", color: "#B0722E" },
 };
 
+// ---------- A1 ----------
+const NOUNS_DER_A1 = [
+["Abend","evening"],["Abflug","departure (flight)"],["Anfang","beginning"],["Anzug","suit"],
+["Apfel","apple"],["April","April"],["Arm","arm"],["Arzt","doctor (m)"],["Aufzug","lift, elevator"],
+["August","August"],["Ausflug","excursion"],["Ausgang","exit"],["Bahnhof","train station"],
+["Balkon","balcony"],["Bauch","stomach, belly"],["Baum","tree"],["Berg","mountain"],["Beruf","profession"],
+["Bleistift","pencil"],["Boden","floor; ground"],["Brief","letter"],["Bruder","brother"],["Bus","bus"],
+["Cent","cent"],["Chef","boss"],["Computer","computer"],["Cousin","cousin (m)"],["Dezember","December"],
+["Dienstag","Tuesday"],["Donnerstag","Thursday"],["Durst","thirst"],["Eingang","entrance"],["Euro","euro"],
+["Fahrplan","timetable"],["Fall","case"],["Februar","February"],["Fehler","mistake"],["Feiertag","public holiday"],
+["Fernseher","television set"],["Film","film"],["Finger","finger"],["Fisch","fish"],["Flughafen","airport"],
+["Flur","hallway"],["Fluss","river"],["Freitag","Friday"],["Freund","friend (m); boyfriend"],["Frühling","spring"],
+["Führerschein","driving licence"],["Fuß","foot"],["Fußball","football"],["Garten","garden"],["Gast","guest"],
+["Geburtstag","birthday"],["Grad","degree"],["Großvater / Opa","grandfather"],["Grund","reason"],["Gürtel","belt"],
+["Hals","neck; throat"],["Herbst","autumn"],["Herd","cooker, stove"],["Herr","Mr; gentleman"],["Himmel","sky"],
+["Hund","dog"],["Hunger","hunger"],["Hut","hat"],["Januar","January"],["Job","job"],["Joghurt","yoghurt"],
+["Juli","July"],["Junge","boy"],["Juni","June"],["Kaffee","coffee"],["Käse","cheese"],["Keller","cellar, basement"],
+["Koffer","suitcase"],["Kollege","colleague (m)"],["Kopf","head"],["Körper","body"],["Kuchen","cake"],
+["Kugelschreiber","ballpoint pen"],["Kühlschrank","fridge"],["Kunde","customer (m)"],["Kurs","course"],
+["Laden","shop"],["Lehrer","teacher (m)"],["Liter","litre"],["Löffel","spoon"],["Mai","May"],
+["Mann","man; husband"],["Mantel","coat"],["Markt","market"],["März","March"],["Mensch","human being, person"],
+["Mittag","midday"],["Mittwoch","Wednesday"],["Monat","month"],["Montag","Monday"],["Morgen","morning"],
+["Müll","rubbish, trash"],["Mund","mouth"],["Nachbar","neighbour"],["Nachmittag","afternoon"],["Nachname","surname"],
+["Name","name"],["Nebel","fog"],["November","November"],["Oktober","October"],["Onkel","uncle"],["Park","park"],
+["Parkplatz","parking space"],["Pfeffer","pepper"],["Platz","square; place; seat"],["Preis","price"],
+["Pullover","jumper, sweater"],["Regen","rain"],["Reis","rice"],["Ring","ring"],["Rock","skirt"],["Rücken","back"],
+["Rucksack","backpack"],["Saft","juice"],["Salat","salad; lettuce"],["Samstag","Saturday"],["Satz","sentence"],
+["Schal","scarf"],["Schlüssel","key"],["Schmerz","pain"],["Schnee","snow"],["Schrank","cupboard, wardrobe"],
+["Schuh","shoe"],["Schüler","pupil"],["See","lake"],["September","September"],["Sessel","armchair"],["Sohn","son"],
+["Sommer","summer"],["Sonntag","Sunday"],["Spaß","fun"],["Spaziergang","walk"],["Spiegel","mirror"],["Sport","sport"],
+["Stein","stone"],["Stift","pen"],["Strand","beach"],["Student","student"],["Stuhl","chair"],
+["Supermarkt","supermarket"],["Tag","day"],["Tanz","dance"],["Tee","tea"],["Teil","part"],["Teller","plate"],
+["Teppich","carpet, rug"],["Termin","appointment; appointment, date"],["Tisch","table"],["Tod","death"],
+["Turm","tower"],["Umzug","house move"],["Unterricht","lesson, class"],["Urlaub","holiday, vacation"],
+["Vater","father"],["Verein","club, association"],["Verkäufer","shop assistant"],["Vogel","bird"],
+["Vormittag","late morning"],["Vorname","first name"],["Wald","forest"],["Weg","way, path"],["Wein","wine"],
+["Wind","wind"],["Winter","winter"],["Zahn","tooth"],["Zahnarzt","dentist"],["Zucker","sugar"],["Zug","train"],
+];
+
+const NOUNS_DIE_A1 = [
+["Abfahrt","departure"],["Adresse","address"],["Angst","fear"],["Ankunft","arrival"],["Antwort","answer"],
+["Apotheke","pharmacy"],["Arbeit","work"],["Art","kind, type"],["Ärztin","doctor (f)"],["Aufgabe","task, exercise"],
+["Bäckerei","bakery"],["Bahn","train, railway"],["Banane","banana"],["Bank","bank; bench"],["Bibliothek","library"],
+["Blume","flower"],["Bluse","blouse"],["Brille","glasses"],["Brücke","bridge"],["Butter","butter"],
+["Cousine","cousin (f)"],["Dame","lady"],["Decke","ceiling; blanket"],["Dusche","shower"],["E-Mail","email"],
+["Ecke","corner"],["Ehe","marriage"],["Eltern (Pl.)","parents"],["Erdbeere","strawberry"],["Erkältung","cold (illness)"],
+["Fahrkarte","ticket"],["Fahrt","ride, trip"],["Familie","family"],["Farbe","colour"],["Ferien (Pl.)","school holidays"],
+["Firma","company"],["Flasche","bottle"],["Frage","question"],["Frau","woman; wife"],["Freizeit","free time"],
+["Freundin","friend (f); girlfriend"],["Gabel","fork"],["Geschwister (Pl.)","siblings"],["Gesundheit","health"],
+["Grippe","flu"],["Größe","size"],["Großeltern (Pl.)","grandparents"],["Großmutter / Oma","grandmother"],
+["Gruppe","group"],["Gurke","cucumber"],["Haltestelle","stop (bus/tram)"],["Hand","hand"],["Hausaufgabe","homework"],
+["Haut","skin"],["Heizung","heating"],["Hilfe","help"],["Hochzeit","wedding"],["Hose","trousers, pants"],
+["Idee","idea"],["Information","information"],["Insel","island"],["Jacke","jacket"],["Jahreszeit","season"],
+["Karotte","carrot"],["Karte","map; card; ticket; ticket (event)"],["Kartoffel","potato"],["Kasse","checkout, till"],
+["Katze","cat"],["Kirche","church"],["Klasse","class"],["Kleidung","clothing"],["Kollegin","colleague (f)"],
+["Krankheit","illness"],["Kreditkarte","credit card"],["Küche","kitchen"],["Kundin","customer (f)"],["Lampe","lamp"],
+["Lehrerin","teacher (f)"],["Leute (Pl.)","people"],["Liebe","love"],["Luft","air"],["Lust","desire, inclination"],
+["Mannschaft","team"],["Medizin","medicine"],["Meinung","opinion"],["Metzgerei","butcher's"],["Miete","rent"],
+["Milch","milk"],["Minute","minute"],["Möglichkeit","possibility"],["Musik","music"],["Mutter","mother"],
+["Mütze","cap, beanie"],["Nachricht","message; news item"],["Nacht","night"],["Nase","nose"],["Natur","nature"],
+["Note","mark, grade"],["Nudeln (Pl.)","pasta, noodles"],["Nummer","number"],["Orange","orange"],["Ordnung","order"],
+["Party","party"],["Pause","break"],["Person","person"],["Pizza","pizza"],["Polizei","police"],["Post","post office"],
+["Praxis","doctor's surgery"],["Prüfung","exam"],["Quittung","receipt"],["Rechnung","bill"],["Reise","journey, trip"],
+["Richtung","direction"],["Sache","thing, matter"],["Schokolade","chocolate"],["Schule","school"],["Schwester","sister"],
+["Seife","soap"],["Seite","page; side"],["Sekunde","second"],["Sendung","broadcast, show"],["Socke","sock"],
+["Sonne","sun"],["Speisekarte","menu"],["Sprache","language"],["Stadt","city, town"],["Straße","street"],
+["Straßenbahn","tram"],["Stunde","hour"],["Suppe","soup"],["Tablette","tablet, pill"],["Tafel","board"],
+["Tante","aunt"],["Tasche","bag; pocket"],["Tasse","cup"],["Temperatur","temperature"],["Tochter","daughter"],
+["Toilette","toilet"],["Tomate","tomato"],["Treppe","stairs"],["Tür","door"],["Tüte","bag (plastic/paper)"],
+["U-Bahn","underground, subway"],["Übung","exercise"],["Uhr","clock; watch"],["Universität","university"],
+["Verletzung","injury"],["Wahrheit","truth"],["Wand","wall"],["Waschmaschine","washing machine"],["Website","website"],
+["Woche","week"],["Wohnung","flat, apartment"],["Wolke","cloud"],["Wurst","sausage"],["Zahl","number"],
+["Zeit","time"],["Zeitung","newspaper"],["Zitrone","lemon"],["Zwiebel","onion"],
+];
+
+const NOUNS_DAS_A1 = [
+["Abendessen","dinner"],["Alter","age"],["Angebot","offer"],["Auge","eye"],["Auto","car"],["Baby","baby"],
+["Bad","bathroom"],["Bein","leg"],["Beispiel","example"],["Bett","bed"],["Bier","beer"],["Bild","picture"],
+["Blatt","sheet (of paper); leaf"],["Blut","blood"],["Brot","bread"],["Brötchen","bread roll"],["Buch","book"],
+["Büro","office"],["Café","café"],["Datum","date"],["Ding","thing"],["Dorf","village"],["Ehepaar","married couple"],
+["Ei","egg"],["Eis","ice cream; ice"],["Ende","end"],["Essen","food; meal"],["Fahrrad","bicycle"],["Fenster","window"],
+["Fest","celebration, festival"],["Feuer","fire"],["Fieber","fever"],["Fleisch","meat"],["Flugzeug","aeroplane"],
+["Formular","form"],["Foto","photo"],["Frühstück","breakfast"],["Frühstücksei","breakfast egg"],["Gebäude","building"],
+["Geld","money"],["Gemüse","vegetables"],["Geschäft","shop; business"],["Geschenk","present, gift"],["Gesicht","face"],
+["Getränk","drink"],["Gewitter","thunderstorm"],["Glas","glass"],["Gleis","platform, track"],["Glück","luck; happiness"],
+["Gramm","gram"],["Gras","grass"],["Haar","hair"],["Hähnchen","chicken (meat)"],["Handtuch","towel"],
+["Handy","mobile phone"],["Haus","house"],["Heft","exercise book"],["Hemd","shirt"],["Herz","heart"],["Hobby","hobby"],
+["Hotel","hotel"],["Internet","internet"],["Jahr","year"],["Kilo","kilo"],["Kind","child"],["Kino","cinema"],
+["Kleid","dress"],["Knie","knee"],["Konto","bank account"],["Konzert","concert"],["Krankenhaus","hospital"],
+["Land","country; countryside"],["Leben","life"],["Licht","light"],["Mädchen","girl"],["Meer","sea"],["Messer","knife"],
+["Mittagessen","lunch"],["Möbel","piece of furniture"],["Museum","museum"],["Obst","fruit"],["Ohr","ear"],["Öl","oil"],
+["Paket","parcel, package"],["Papier","paper"],["Pferd","horse"],["Praktikum","internship"],["Problem","problem"],
+["Programm","programme"],["Radio","radio"],["Rathaus","town hall"],["Regal","shelf"],["Restaurant","restaurant"],
+["Rezept","prescription; recipe"],["Salz","salt"],["Schiff","ship"],["Schlafzimmer","bedroom"],
+["Schwimmbad","swimming pool"],["Schwimmen","swimming"],["Sofa","sofa"],["Spiel","game; match"],["Stück","piece"],
+["T-Shirt","T-shirt"],["Taxi","taxi"],["Telefon","telephone"],["Theater","theatre"],["Ticket","ticket"],
+["Tier","animal"],["Wasser","water"],["Wetter","weather"],["Wochenende","weekend"],["Wohnzimmer","living room"],
+["Wort","word"],["Wörterbuch","dictionary"],["Zentrum","centre"],["Zeugnis","report card, certificate"],["Zimmer","room"],
+];
+
+const ADJECTIVES_A1 = [
+["gut","good"],["schlecht","bad"],["groß","big, tall"],["klein","small"],["alt","old"],["neu","new"],
+["jung","young"],["lang","long"],["kurz","short"],["hoch","high"],["niedrig","low"],["breit","wide"],
+["schmal","narrow"],["dick","thick, fat"],["dünn","thin"],["schwer","heavy; difficult"],["leicht","light; easy"],
+["schnell","fast"],["langsam","slow"],["früh","early"],["spät","late"],["warm","warm"],["kalt","cold"],
+["heiß","hot"],["kühl","cool"],["nass","wet"],["trocken","dry"],["hell","bright, light"],["dunkel","dark"],
+["laut","loud"],["leise","quiet"],["sauber","clean"],["schmutzig","dirty"],["voll","full"],["leer","empty"],
+["offen","open"],["geschlossen","closed"],["teuer","expensive"],["billig","cheap"],["günstig","good value, favourable"],
+["reich","rich"],["arm","poor"],["schön","beautiful, nice"],["hässlich","ugly"],["nett","nice, kind"],
+["freundlich","friendly"],["sympathisch","likeable"],["höflich","polite"],["glücklich","happy"],["traurig","sad"],
+["müde","tired"],["fit","fit"],["krank","ill"],["gesund","healthy"],["hungrig","hungry"],["durstig","thirsty"],
+["interessant","interesting"],["langweilig","boring"],["lustig","funny"],["wichtig","important"],
+["richtig","correct, right"],["falsch","wrong"],["einfach","simple, easy"],["schwierig","difficult"],
+["möglich","possible"],["fertig","finished, ready"],["bereit","ready"],["frei","free; vacant"],
+["besetzt","occupied, taken"],["bekannt","well-known"],["fremd","foreign, strange"],["gleich","same; equal"],
+["verschieden","different"],["ähnlich","similar"],["nah","near"],["weit","far"],["links","left"],["rechts","right"],
+["gerade","straight"],["erste","first"],["letzte","last"],["nächste","next"],["ganz","whole, entire"],["halb","half"],
+["viel","much, a lot"],["wenig","little, few"],["genug","enough"],["lecker","tasty"],["süß","sweet"],
+["salzig","salty"],["sauer","sour"],["scharf","spicy; sharp"],["bitter","bitter"],["frisch","fresh"],["rot","red"],
+["blau","blue"],["grün","green"],["gelb","yellow"],["schwarz","black"],["weiß","white"],["braun","brown"],
+["grau","grey"],["orange","orange"],["rosa","pink"],["bunt","colourful"],["verheiratet","married"],
+["ledig","single, unmarried"],["allein","alone"],["zufrieden","satisfied, content"],["böse","angry; evil"],
+["nervös","nervous"],["ruhig","calm, quiet"],["fleißig","hard-working"],["faul","lazy"],["pünktlich","punctual"],
+["sicher","safe; certain"],["gefährlich","dangerous"],
+];
+
+const VERBS_A1 = [
+["sein","to be"],["haben","to have"],["werden","to become"],["machen","to do, to make"],["gehen","to go, to walk"],
+["kommen","to come"],["sagen","to say"],["sprechen","to speak"],["sehen","to see"],["hören","to hear, to listen to"],
+["lesen","to read"],["schreiben","to write"],["essen","to eat"],["trinken","to drink"],["schlafen","to sleep"],
+["stehen","to stand"],["sitzen","to sit"],["liegen","to lie, to be situated"],["laufen","to run, to walk"],
+["fahren","to drive, to travel"],["fliegen","to fly"],["nehmen","to take"],["geben","to give"],
+["finden","to find; to think (an opinion)"],["kaufen","to buy"],["verkaufen","to sell"],["bezahlen","to pay"],
+["kosten","to cost"],["arbeiten","to work"],["lernen","to learn, to study"],["studieren","to study (at university)"],
+["üben","to practise"],["verstehen","to understand"],["wissen","to know (a fact)"],
+["kennen","to know (be familiar with)"],["denken","to think"],["glauben","to believe, to think"],
+["meinen","to mean; to be of the opinion"],["fragen","to ask"],["antworten","to answer"],["erklären","to explain"],
+["zeigen","to show"],["suchen","to look for"],["brauchen","to need"],["helfen","to help"],
+["wohnen","to live, to reside"],["leben","to live"],["bleiben","to stay, to remain"],["besuchen","to visit"],
+["treffen","to meet"],["warten","to wait"],["beginnen","to begin"],["anfangen","to start"],
+["aufhören","to stop, to finish"],["enden","to end"],["öffnen / aufmachen","to open"],["schließen","to close"],
+["zumachen","to close, to shut"],["anrufen","to call, to phone"],["telefonieren","to talk on the phone"],
+["einkaufen","to go shopping"],["kochen","to cook"],["backen","to bake"],["putzen","to clean"],
+["waschen","to wash"],["aufräumen","to tidy up"],["aufstehen","to get up"],["einschlafen","to fall asleep"],
+["aufwachen","to wake up"],["anziehen","to put on (clothes)"],["ausziehen","to take off (clothes); to move out"],
+["einziehen","to move in"],["mitbringen","to bring along"],["mitkommen","to come along"],
+["abholen","to pick up, to collect"],["bringen","to bring"],["holen","to fetch"],["tragen","to carry; to wear"],
+["legen","to lay, to put down"],["stellen","to place, to put upright"],["setzen","to set, to put"],
+["hängen","to hang"],["spielen","to play"],["singen","to sing"],["tanzen","to dance"],["schwimmen","to swim"],
+["reisen","to travel"],["wandern","to hike"],["lachen","to laugh"],["weinen","to cry"],["lieben","to love"],
+["mögen","to like"],["gefallen","to please, to appeal to"],["schmecken","to taste (good)"],
+["können","can, to be able to"],["müssen","must, to have to"],["wollen","to want to"],
+["sollen","should, to be supposed to"],["dürfen","may, to be allowed to"],["möchten","would like to"],
+["heißen","to be called"],["buchstabieren","to spell"],["wiederholen","to repeat"],["vergessen","to forget"],
+["erinnern (sich)","to remember"],["bekommen","to get, to receive"],["schicken","to send"],
+["dauern","to last, to take (time)"],["passieren","to happen"],["stattfinden","to take place"],
+["gewinnen","to win"],["verlieren","to lose"],["sich freuen","to be glad, to look forward"],
+["sich interessieren für","to be interested in"],["sich setzen","to sit down"],["sich waschen","to wash oneself"],
+["sich fühlen","to feel"],["rauchen","to smoke"],["reparieren","to repair"],["funktionieren","to work, to function"],
+["fehlen","to be missing; to be absent"],["gehören","to belong to"],["passen","to fit, to suit"],
+["sich vorstellen","to introduce oneself; to imagine"],["umziehen","to move house"],["ankommen","to arrive"],
+["abfahren","to depart"],["einsteigen","to get in/on"],["aussteigen","to get off"],["umsteigen","to change (trains)"],
+["schenken","to give as a present"],["feiern","to celebrate"],["bestellen","to order"],
+["reservieren","to reserve, to book"],["buchen","to book"],["packen","to pack"],["malen / zeichnen","to paint / to draw"],
+["sich anmelden","to register, to sign up"],
+];
+
+const FUNCTION_WORDS_A1 = [
+["ich / du / er / sie / es","I / you / he / she / it"],["wir / ihr / sie / Sie","we / you (pl) / they / you (formal)"],
+["mich / dich / ihn / sie / es","me / you / him / her / it (acc.)"],["mir / dir / ihm / ihr","to me / to you / to him / to her (dat.)"],
+["mein / dein / sein / ihr","my / your / his / her"],["unser / euer / ihr / Ihr","our / your (pl) / their / your (formal)"],
+["der / die / das","the"],["ein / eine","a, an"],["kein / keine","no, not any"],["dieser / diese / dieses","this"],
+["jeder / jede / jedes","every, each"],["alle","all"],["man","one, you (impersonal)"],["etwas","something"],
+["nichts","nothing"],["jemand","somebody"],["niemand","nobody"],["alles","everything"],["viele","many"],
+["einige","some, several"],["und","and"],["oder","or"],["aber","but"],["denn","because (coord.)"],
+["weil","because (sub.)"],["dass","that"],["wenn","if, when"],["als","when (past, once); than"],["ob","whether"],
+["obwohl","although"],["damit","so that"],["also","so, therefore"],["dann","then"],["deshalb","therefore, that's why"],
+["trotzdem","nevertheless"],["in","in"],["an","at, on (vertical)"],["auf","on (horizontal)"],["unter","under"],
+["über","over, above; about"],["vor","in front of; before"],["hinter","behind"],["neben","next to"],
+["zwischen","between"],["bei","at, near; at the home of"],["mit","with"],["ohne","without"],["für","for"],
+["gegen","against"],["um","around; at (time)"],["von","from, of"],["zu","to"],["nach","to (places); after"],
+["aus","out of, from"],["seit","since, for"],["bis","until"],["während","during"],["wegen","because of"],
+["durch","through"],["wer","who"],["was","what"],["wo","where"],["wohin","where to"],["woher","where from"],
+["wann","when"],["wie","how"],["warum","why"],["welcher / welche / welches","which"],
+["wie viel / wie viele","how much / how many"],["ja","yes"],["nein","no"],["doch","yes (contradicting); after all"],
+["nicht","not"],["auch","also, too"],["nur","only"],["noch","still, yet"],["schon","already"],
+["erst","not until; only"],["wieder","again"],["immer","always"],["oft","often"],["manchmal","sometimes"],
+["selten","rarely"],["nie","never"],["meistens","mostly, usually"],["gerade","just now"],["jetzt","now"],
+["heute","today"],["gestern","yesterday"],["morgen","tomorrow"],["vorgestern","the day before yesterday"],
+["übermorgen","the day after tomorrow"],["bald","soon"],["gleich","right away"],["zuerst","first (of all)"],
+["danach","after that"],["zuletzt","finally, last"],["hier","here"],["dort / da","there"],["oben","above, upstairs"],
+["unten","below, downstairs"],["vorne","at the front"],["hinten","at the back"],["draußen","outside"],
+["drinnen","inside"],["überall","everywhere"],["nirgendwo","nowhere"],["zusammen","together"],["allein","alone"],
+["sehr","very"],["ziemlich","quite, fairly"],["besonders","especially"],["vielleicht","perhaps"],
+["natürlich","of course"],["leider","unfortunately"],["gern","gladly, willingly"],["lieber","rather, preferably"],
+["am liebsten","most of all"],["bitte","please"],["danke","thank you"],["null, eins, zwei, drei","0, 1, 2, 3"],
+["vier, fünf, sechs, sieben","4, 5, 6, 7"],["acht, neun, zehn, elf, zwölf","8, 9, 10, 11, 12"],
+["zwanzig, dreißig, vierzig","20, 30, 40"],["hundert, tausend, die Million","100, 1000, million"],
+];
+
+const PHRASES_A1 = [
+["Guten Morgen / Tag / Abend","Good morning / day / evening"],["Hallo! / Tschüss!","Hi! / Bye!"],
+["Auf Wiedersehen","Goodbye"],["Wie geht's? / Wie geht es Ihnen?","How are you? (inf. / formal)"],
+["Mir geht es gut, danke.","I'm fine, thanks."],["Wie heißen Sie?","What is your name? (formal)"],
+["Ich heiße ...","My name is ..."],["Woher kommen Sie?","Where are you from?"],["Ich komme aus ...","I'm from ..."],
+["Ich wohne in ...","I live in ..."],["Freut mich!","Pleased to meet you!"],["Wie bitte?","Sorry, what? / Pardon?"],
+["Entschuldigung / Es tut mir leid","Excuse me / I'm sorry"],["Kein Problem","No problem"],
+["Danke schön / Bitte schön","Thank you / You're welcome"],["Sprechen Sie Englisch?","Do you speak English?"],
+["Ich verstehe (nicht).","I (don't) understand."],["Können Sie das bitte wiederholen?","Could you repeat that, please?"],
+["Können Sie langsamer sprechen?","Could you speak more slowly?"],["Wie sagt man ... auf Deutsch?","How do you say ... in German?"],
+["Was bedeutet ...?","What does ... mean?"],["Wie schreibt man das?","How do you spell that?"],
+["Wie spät ist es?","What time is it?"],["Es ist halb acht.","It's half past seven."],
+["Wie viel kostet das?","How much does that cost?"],["Ich hätte gern ...","I would like ..."],
+["Ich möchte bitte ...","I'd like ..., please."],["Die Rechnung, bitte.","The bill, please."],
+["Zahlen, bitte!","I'd like to pay!"],["Wo ist ...?","Where is ...?"],["Wie komme ich zum/zur ...?","How do I get to ...?"],
+["Gehen Sie geradeaus.","Go straight ahead."],["Biegen Sie links / rechts ab.","Turn left / right."],
+["Ich suche ...","I'm looking for ..."],["Können Sie mir helfen?","Can you help me?"],
+["Ich habe eine Frage.","I have a question."],["Ich weiß (es) nicht.","I don't know."],
+["Das ist mir egal.","I don't mind. / I don't care."],["Viel Spaß! / Viel Glück!","Have fun! / Good luck!"],
+["Herzlichen Glückwunsch!","Congratulations!"],["Gute Besserung!","Get well soon!"],["Guten Appetit!","Enjoy your meal!"],
+["Prost! / Zum Wohl!","Cheers!"],["Bis später / bis morgen / bis bald","See you later / tomorrow / soon"],
+["Ich bin müde / hungrig.","I'm tired / hungry."],["Es gibt ...","There is / there are ..."],
+["Ich habe Lust auf ...","I feel like (having) ..."],["Ich habe keine Zeit.","I don't have time."],
+];
+
+// ---------- B1 ----------
+const NOUNS_DER_B1 = [
+["Alkohol","alcohol"],["Ansatz","approach"],["Anteil","share, proportion"],["Antrag","application, request"],
+["Anwalt","lawyer"],["Aspekt","aspect"],["Atomstrom","nuclear power"],["Ausbildungsplatz","training place"],
+["Ausstoß","emissions"],["Autor","author"],["Beitrag","post; contribution"],["Beleg","receipt, voucher"],
+["Bewegungsmangel","lack of exercise"],["Beweis","proof, evidence"],["Bildschirm","screen"],["Brauch","custom"],
+["Bürger","citizen"],["Datenschutz","data protection"],["Druck","pressure"],["Durchschnitt","average"],
+["Eindruck","impression"],["Einfluss","influence"],["Fachmann / die Fachkraft","specialist, skilled worker"],
+["Flüchtling","refugee"],["Fortschritt","progress"],["Gegensatz","contrast"],["Gewinn","profit"],
+["Journalist","journalist"],["Klimawandel","climate change"],["Kollegenkreis","circle of colleagues"],
+["Kommentar","comment"],["Kompromiss","compromise"],["Konflikt","conflict"],["Konkurrent","competitor"],
+["Kredit","loan"],["Markt","market"],["Nahverkehr","local transport"],["Naturschutz","nature conservation"],
+["Neubau","new building"],["Nutzen","benefit, use"],["Nutzer","user"],["Optimismus","optimism"],
+["Pessimismus","pessimism"],["Plastikmüll","plastic waste"],["Politiker","politician"],["Professor","professor"],
+["Protest","protest"],["Regisseur","director"],["Rentner","pensioner"],["Richter","judge"],
+["Rohstoff","raw material"],["Roman","novel"],["Rückgang","decline"],["Schaden","damage, harm"],
+["Schlafmangel","lack of sleep"],["Staat","state"],["Standpunkt","point of view"],["Stau","traffic jam"],
+["Streik","strike"],["Trend","trend"],["Überblick","overview"],["Umfang","scope, extent"],
+["Umsatz","turnover, revenue"],["Verbrauch","consumption"],["Verlag","publisher"],["Verlust","loss"],
+["Verzicht","doing without, renunciation"],["Virus","virus (das Virus in biology)"],["Wandel","change, transformation"],
+["Wettbewerb","competition"],["Widerspruch","contradiction"],["Wissenschaftler","scientist"],
+["Wohnraum","living space"],["Wohnungsmarkt","housing market"],["Zufall","coincidence, chance"],
+["Zusammenhang","context, correlation"],["Zweck","purpose"],
+];
+
+const NOUNS_DIE_B1 = [
+["Abhängigkeit","dependency, addiction"],["Abnahme","decrease"],["Abwechslung","variety, change"],["Aktie","share, stock"],
+["Alternative","alternative"],["Analyse","analysis"],["Anerkennung","recognition, appreciation"],["Anforderung","requirement"],
+["Annahme","assumption"],["Anwendung","application, use"],["Architektur","architecture"],["Artenvielfalt","biodiversity"],
+["Aufführung","performance"],["Ausdauer","stamina, endurance"],["Auseinandersetzung","dispute, confrontation"],
+["Ausnahme","exception"],["Auswertung","evaluation, analysis"],["Auswirkung","effect, impact"],
+["Bachelorarbeit","bachelor's thesis"],["Baustelle","building site"],["Bedeutung","significance, meaning"],
+["Bedingung","condition"],["Beförderung","promotion"],["Befragung","survey, questioning"],["Begeisterung","enthusiasm"],
+["Begründung","justification, reasoning"],["Behauptung","claim, assertion"],["Behinderung","disability"],
+["Belastung","strain, burden"],["Benutzeroberfläche","user interface"],["Berichterstattung","reporting, coverage"],
+["Bescheinigung","certificate, confirmation"],["Beschwerden (Pl.)","complaints, symptoms"],["Bevölkerung","population"],
+["Bewerbungsunterlagen (Pl.)","application documents"],["Beziehung","relation"],["Börse","stock exchange"],
+["Branche","sector, industry"],["Buchhaltung","accounting"],["Demokratie","democracy"],["Demonstration","demonstration"],
+["Diagnose","diagnosis"],["Dienstleistung","service"],["Diskriminierung","discrimination"],["Doktorarbeit","doctoral thesis"],
+["Dürre","drought"],["Einsamkeit","loneliness"],["Einsparung","saving, reduction"],["Einstellung","setting; attitude"],
+["Emission","emission"],["Entdeckung","discovery"],["Enttäuschung","disappointment"],["Entwicklung","development"],
+["Entwöhnung","withdrawal, quitting"],["Erderwärmung","global warming"],["Erfindung","invention"],
+["Erholung","recreation, recovery"],["Erkenntnis","insight, finding"],["Ernährungsweise","way of eating, diet"],
+["erneuerbare Energie","renewable energy"],["Erschöpfung","exhaustion"],["Erwartung","expectation"],
+["Erzählung","short story"],["Fahrgemeinschaft","car pool"],["Fahrradwege (Pl.)","cycle paths"],
+["Falschmeldung","fake news, false report"],["Figur","character; figure"],["Fitness","fitness"],
+["Folgen (Pl.)","consequences"],["Forschung","research"],["Freude","joy"],["Freundschaft","friendship"],
+["Frist","deadline"],["Führung","leadership"],["Funktion","function"],["Gehaltserhöhung","pay rise"],
+["Gemeinschaft","community"],["Genehmigung","permit, approval"],["Gerechtigkeit","justice"],["Gesellschaft","society"],
+["Gestaltung","design, arrangement"],["Gewerkschaft","trade union"],["Glaubwürdigkeit","credibility"],
+["Gleichberechtigung","equal rights"],["Grenze","limit; border"],["Grundlage","basis, foundation"],
+["Gründung","founding, start-up"],["Handlung","plot; action"],["Hardware","hardware"],["Herausforderung","challenge"],
+["Herkunft","origin, background"],["Hochschule","university, college"],["Identität","identity"],
+["Immobilie","property, real estate"],["Impfung","vaccination"],["Inflation","inflation"],["Infrastruktur","infrastructure"],
+["Innovation","innovation"],["Integration","integration"],["Investition","investment"],["Justiz","judiciary"],
+["Kalorie","calorie"],["Katastrophe","catastrophe, disaster"],["Kohle","coal"],["Konkurrenz","competition"],
+["Konzentration","concentration"],["Kraft","strength"],["Kriminalität","crime (in general)"],["Krise","crisis"],
+["Kritik","criticism"],["Kultur","culture"],["Kündigungsfrist","notice period"],["künstliche Intelligenz","artificial intelligence"],
+["Lärmbelästigung","noise pollution"],["Lebenserwartung","life expectancy"],["Lebensqualität","quality of life"],
+["Leidenschaft","passion"],["Literatur","literature"],["Lösung","solution"],["Luftverschmutzung","air pollution"],
+["Maßnahme","measure, step"],["Medien (Pl.)","media"],["Mehrheit","majority"],["Meinungsfreiheit","freedom of speech"],
+["Meldung","report, news item"],["Menschenrechte (Pl.)","human rights"],["Methode","method"],["Migration","migration"],
+["Minderheit","minority"],["Mülltrennung","waste separation"],["Nachhaltigkeit","sustainability"],
+["Nebenwirkung","side effect"],["Neugier","curiosity"],["Note","grade"],["Notwendigkeit","necessity"],
+["Nutzung","use, usage"],["Obdachlosigkeit","homelessness"],["Öffentlichkeit","the public"],["Option","option"],
+["Partei","political party"],["Persönlichkeit","personality"],["Perspektive","perspective"],["Pflege","care, nursing"],
+["Priorität","priority"],["Privatsphäre","privacy"],["Probezeit","probation period"],["Produktion","production"],
+["Qualifikation","qualification"],["Quelle","source"],["Recherche","research (journalistic)"],["Rechnung","invoice"],
+["Referenz","reference"],["Regie","direction (film/theatre)"],["Regierung","government"],
+["Rehabilitation","rehabilitation"],["Rente","pension"],["Ressource","resource"],["Rezension","review"],["Rolle","role"],
+["Rücksicht","consideration"],["Sammlung","collection"],["Sanierung","renovation"],["Scheidung","divorce"],
+["Schlagzeile","headline"],["Schlussfolgerung","conclusion"],["Schwankung","fluctuation"],["Sehnsucht","longing"],
+["Selbstständigkeit","self-employment"],["Sicherheitslücke","security gap"],["Software","software"],
+["Solaranlage","solar installation"],["Sozialleistung","social benefit"],["Speicherung","storage"],
+["Staatsangehörigkeit","nationality"],["Statistik","statistics"],["Strafe","punishment, fine"],["Studie","study"],
+["Sucht","addiction"],["Technik","technology; technique"],["Technologie","technology"],["Tendenz","trend, tendency"],
+["Theorie","theory"],["Therapie","therapy"],["These","thesis, hypothesis"],["Toleranz","tolerance"],
+["Tradition","tradition"],["Trauer","grief, sorrow"],["Treibhausgase (Pl.)","greenhouse gases"],["Trennung","separation"],
+["Übereinstimmung","agreement, correspondence"],["Überschwemmung","flood"],["Übersicht","overview"],
+["Übertragung","transmission"],["Überzeugung","conviction"],["Umfrage","survey"],["Unsicherheit","insecurity"],
+["Unterhaltung","entertainment; conversation"],["Unterlagen (Pl.)","documents"],["Verantwortung","responsibility"],
+["Vereinbarung","agreement"],["Verfassung","constitution"],["Verhandlung","negotiation"],
+["Verkehrsmittel (Pl.)","means of transport"],["Verpackung","packaging"],["Verschlüsselung","encryption"],
+["Versöhnung","reconciliation"],["Vielfalt","diversity, variety"],["Voraussetzung","prerequisite"],
+["Vorsorge","prevention, check-up"],["Vorstellung","idea, notion"],["Wahl","election"],["Wahrnehmung","perception"],
+["Wahrscheinlichkeit","probability"],["Wiederverwertung","recycling, reuse"],["Windkraft","wind power"],
+["Wirkung","effect, impact"],["Wirtschaft","economy"],["Wissenschaft","science"],["Wohngemeinschaft (WG)","shared flat"],
+["Work-Life-Balance","work-life balance"],["Wut","anger, rage"],["Zensur","censorship"],["Zunahme","increase"],
+["Zuneigung","affection"],["Zusammenarbeit","cooperation"],["Zusammenfassung","summary"],
+["Zuständigkeit","responsibility, jurisdiction"],["Zuversicht","confidence, optimism"],
+];
+
+const NOUNS_DAS_B1 = [
+["Argument","argument"],["Ausmaß","extent, scale"],["Aussterben","extinction"],["Bewusstsein","awareness, consciousness"],
+["Budget","budget"],["Denkmal","monument"],["Eigentum","property, ownership"],["Erbe","heritage"],
+["Erdöl","crude oil"],["Ergebnis","result, finding"],["Experiment","experiment"],["Fachwissen","expertise"],
+["Fazit","conclusion, upshot"],["Gedicht","poem"],["Gegenteil","opposite"],["Gericht","court"],["Gesetz","law"],
+["Kraftwerk","power plant"],["Lernziel","learning objective"],["Lob","praise"],["Missverständnis","misunderstanding"],
+["Mittel","means"],["Nahrungsmittel","foodstuff"],["Parlament","parliament"],["Pflegeheim","care home"],
+["Publikum","audience"],["Rauchen","smoking"],["Selbstbewusstsein","self-assurance"],["Selbstvertrauen","self-confidence"],
+["soziale Netzwerk","social network"],["Stipendium","scholarship"],["Talent","talent"],["Unternehmen","company, enterprise"],
+["Verbrechen","crime"],["Verfahren","procedure, process"],["Vergnügen","pleasure"],["Verhalten","behaviour"],
+["Verhältnis","relationship, ratio"],["Verständnis","understanding"],["Vitamin","vitamin"],["Vorbild","role model"],
+["Vorurteil","prejudice"],["Wachstum","growth"],["Wohlbefinden","wellbeing"],["Zeugnis","reference, certificate"],
+];
+
+const ADJECTIVES_B1 = [
+["gesellschaftlich","social, societal"],["politisch","political"],["wirtschaftlich","economic; economical"],
+["finanziell","financial"],["rechtlich","legal"],["gesetzlich","statutory, legal"],["öffentlich","public"],
+["privat","private"],["staatlich","state, public"],["international","international"],["weltweit","worldwide"],
+["örtlich / lokal","local"],["regional","regional"],["technisch","technical"],["wissenschaftlich","scientific"],
+["theoretisch","theoretical"],["praktisch","practical"],["persönlich","personal"],["beruflich","professional, work-related"],
+["sozial","social"],["kulturell","cultural"],["sprachlich","linguistic"],["körperlich","physical"],
+["seelisch","mental, emotional"],["umweltfreundlich","environmentally friendly"],["nachhaltig","sustainable"],
+["schädlich","harmful"],["gefährlich","dangerous"],["riskant","risky"],["sicher","secure, safe"],
+["zuverlässig","reliable"],["wirksam","effective"],["effizient","efficient"],["sinnvoll","sensible, meaningful"],
+["sinnlos","pointless"],["überflüssig","superfluous"],["erforderlich","required, necessary"],
+["unvermeidlich","unavoidable"],["zwingend","compelling, mandatory"],["freiwillig","voluntary"],
+["verpflichtend","obligatory"],["zulässig","permissible"],["verboten","forbidden"],["erlaubt","allowed"],
+["angemessen","appropriate"],["unangemessen","inappropriate"],["gerecht","fair, just"],["ungerecht","unfair"],
+["objektiv","objective"],["subjektiv","subjective"],["kritisch","critical"],["skeptisch","sceptical"],
+["überzeugend","convincing"],["fraglich","questionable"],["umstritten","controversial, disputed"],
+["eindeutig","unambiguous, clear"],["zweideutig","ambiguous"],["widersprüchlich","contradictory"],
+["offensichtlich","obvious"],["auffällig","conspicuous, striking"],["erheblich","considerable"],["gering","slight, low"],
+["deutlich","clear, marked"],["enorm","enormous"],["umfangreich","extensive"],["begrenzt","limited"],
+["vielfältig","diverse, varied"],["einheitlich","uniform, consistent"],["allgemein","general"],
+["speziell","specific, special"],["konkret","concrete"],["abstrakt","abstract"],["grundsätzlich","fundamental; in principle"],
+["wesentlich","essential"],["entscheidend","decisive, crucial"],["zentral","central"],
+["nebensächlich","of secondary importance"],["vorläufig","provisional"],["endgültig","final"],["ständig","constant"],
+["gelegentlich","occasional"],["zeitweise","temporary"],["langfristig","long-term"],["kurzfristig","short-term"],
+["dauerhaft","permanent"],["vorübergehend","temporary"],["aktuell","current, topical"],["veraltet","outdated"],
+["zukünftig","future"],["ehemalig","former"],["selbstverständlich","self-evident, obvious"],
+["erstaunlich","astonishing"],["beeindruckend","impressive"],["bemerkenswert","remarkable"],["erfolgreich","successful"],
+["erfolglos","unsuccessful"],["zufrieden","satisfied"],["gelassen","calm, composed"],["gestresst","stressed"],
+["überfordert","overwhelmed"],["motiviert","motivated"],["engagiert","committed, dedicated"],
+["zurückhaltend","reserved, restrained"],["offen","open"],["tolerant","tolerant"],["rücksichtsvoll","considerate"],
+["rücksichtslos","inconsiderate, ruthless"],["egoistisch","selfish"],["hilfsbereit","helpful"],
+["verständnisvoll","understanding"],
+];
+
+const VERBS_B1 = [
+["betreffen","to concern, to affect"],["beeinflussen","to influence"],["auswirken (sich) auf","to have an effect on"],
+["verursachen","to cause"],["führen zu","to lead to"],["beruhen auf","to be based on"],["zurückführen auf","to attribute to"],
+["abhängen von","to depend on"],["zusammenhängen mit","to be connected with"],["berücksichtigen","to take into account"],
+["beachten","to observe, to heed"],["betonen","to emphasise"],["hervorheben","to highlight"],["erwähnen","to mention"],
+["hinweisen auf","to point out"],["verweisen auf","to refer to"],["feststellen","to establish, to note"],
+["behaupten","to claim"],["bestreiten","to deny, to dispute"],["zugeben","to admit"],["bestätigen","to confirm"],
+["widersprechen","to contradict"],["argumentieren","to argue"],["begründen","to justify, to give reasons for"],
+["rechtfertigen","to justify"],["kritisieren","to criticise"],["beurteilen","to judge, to assess"],
+["bewerten","to evaluate, to rate"],["einschätzen","to assess, to estimate"],["schätzen","to estimate; to value"],
+["voraussetzen","to presuppose, to require"],["annehmen","to assume"],["vermuten","to suspect, to presume"],
+["schließen aus","to conclude from"],["folgern","to conclude, to deduce"],["zusammenfassen","to summarise"],
+["erläutern","to explain in detail"],["darstellen","to depict, to present"],["beschreiben","to describe"],
+["verdeutlichen","to clarify"],["veranschaulichen","to illustrate"],["unterstreichen","to underline, to stress"],
+["ermöglichen","to make possible, to enable"],["erschweren","to make difficult"],["verhindern","to prevent"],
+["vermeiden","to avoid"],["fördern","to promote, to support"],["unterstützen","to support"],["erfordern","to require"],
+["verlangen","to demand"],["beantragen","to apply for"],["genehmigen","to approve"],["ablehnen","to reject"],
+["verzichten auf","to do without"],["sich leisten","to afford"],["sich lohnen","to be worth it"],
+["sich beteiligen an","to participate in"],["sich engagieren","to get involved"],["sich einsetzen für","to campaign for"],
+["sich durchsetzen","to prevail, to assert oneself"],["sich verhalten","to behave"],["sich benehmen","to behave"],
+["sich entwickeln","to develop"],["sich verbreiten","to spread"],["zunehmen","to increase"],["abnehmen","to decrease"],
+["steigern","to increase, to boost"],["reduzieren","to reduce"],["senken","to lower"],["erhöhen","to raise"],
+["betragen","to amount to"],["überwiegen","to predominate"],["überzeugen","to convince"],["beeindrucken","to impress"],
+["enttäuschen","to disappoint"],["erschrecken","to frighten; to be startled"],["ertragen","to endure, to bear"],
+["aushalten","to stand, to bear"],["bewältigen","to cope with, to manage"],["überwinden","to overcome"],
+["sich anpassen","to adapt"],["umgehen mit","to deal with"],["verzweifeln","to despair"],["aufgeben","to give up"],
+["erledigen","to take care of"],["durchführen","to carry out"],["umsetzen","to implement"],
+["verwirklichen","to realise, to bring about"],["erreichen","to achieve, to reach"],["erzielen","to achieve, to obtain"],
+["scheitern an","to fail at"],["versagen","to fail, to break down"],["gelten","to be valid, to apply"],
+["zählen zu","to be counted among"],["gehören zu","to be one of, to belong to"],["entsprechen","to correspond to"],
+["übereinstimmen","to agree, to match"],["abweichen von","to deviate from"],["unterscheiden sich","to differ"],
+["ersetzen","to replace"],["ergänzen","to complement, to add"],["erweitern","to expand"],["beschränken auf","to limit to"],
+["einschränken","to restrict"],["erlauben","to permit"],["untersagen","to prohibit"],["haften für","to be liable for"],
+["versichern","to insure; to assure"],["kündigen","to give notice, to terminate"],["einstellen","to hire; to stop"],
+["entlassen","to dismiss, to lay off"],["gründen","to found"],["leiten","to lead, to manage"],
+["verwalten","to administer"],["verhandeln","to negotiate"],["vereinbaren","to agree on, to arrange"],
+["abschließen","to conclude; to lock"],["unterschreiben","to sign"],["beitragen zu","to contribute to"],
+["veröffentlichen","to publish"],["berichten über","to report on"],["sich informieren über","to find out about"],
+["recherchieren","to research"],["untersuchen","to investigate, to examine"],["erforschen","to research, to explore"],
+["entwickeln","to develop"],["erfinden","to invent"],["entdecken","to discover"],["testen / prüfen","to test / to check"],
+["kontrollieren","to check, to control"],["überprüfen","to verify"],["messen","to measure"],
+["auswerten","to evaluate, to analyse"],["schützen","to protect"],["bewahren","to preserve"],["zerstören","to destroy"],
+["beschädigen","to damage"],["belasten","to burden, to strain"],["entlasten","to relieve"],["verschwenden","to waste"],
+["sparen","to save"],["sich gewöhnen an","to get used to"],["sich weigern","to refuse"],["zögern","to hesitate"],
+["wagen","to dare"],["riskieren","to risk"],["auffallen","to be noticeable, to stand out"],["auftreten","to occur; to appear"],
+["vorkommen","to occur, to happen"],["ausreichen","to be sufficient"],["genügen","to suffice"],
+];
+
+const FUNCTION_WORDS_B1 = [
+["einerseits ... andererseits","on the one hand ... on the other hand"],["zum einen ... zum anderen","firstly ... secondly"],
+["erstens / zweitens / drittens","firstly / secondly / thirdly"],["darüber hinaus","furthermore, beyond that"],
+["des Weiteren","furthermore"],["ferner","moreover"],["zudem","in addition"],["ebenfalls","likewise, also"],
+["hingegen","by contrast"],["dennoch","nevertheless"],["dessen ungeachtet","notwithstanding that"],
+["nichtsdestotrotz","nonetheless"],["gleichwohl","nevertheless"],["andernfalls","otherwise"],
+["ansonsten","otherwise, apart from that"],["folglich","consequently"],["infolgedessen","as a result"],
+["somit","thus"],["demnach","accordingly"],["daher","hence"],["aus diesem Grund","for this reason"],
+["angesichts","in view of"],["hinsichtlich","with regard to"],["bezüglich","regarding"],["in Bezug auf","with reference to"],
+["im Hinblick auf","with a view to"],["im Vergleich zu","in comparison with"],["im Gegensatz zu","in contrast to"],
+["im Unterschied zu","unlike"],["im Verhältnis zu","in relation to"],["abgesehen von","apart from"],
+["unabhängig von","irrespective of"],["je nachdem","depending"],["insofern","in so far as"],["sofern","provided that"],
+["falls","in case, if"],["es sei denn","unless"],["vorausgesetzt, dass","provided that"],["indem","by ...-ing"],
+["sodass","so that (result)"],["als ob","as if"],["wie wenn","as though"],["auch wenn","even if"],
+["selbst wenn","even if"],["während","whereas; while"],["wohingegen","whereas"],["kaum dass","hardly ... when"],
+["seitdem","ever since"],["je ... desto / umso","the ... the"],["nicht zuletzt","not least"],["vor allem","above all"],
+["insbesondere","in particular"],["beispielsweise","for instance"],["unter anderem","among other things"],
+["im Allgemeinen","in general"],["in der Regel","as a rule"],["grundsätzlich","in principle"],["im Prinzip","in principle"],
+["letztendlich","ultimately"],["im Grunde","basically"],["streng genommen","strictly speaking"],
+["genauer gesagt","more precisely"],["mit anderen Worten","in other words"],["das heißt (d. h.)","that is (i.e.)"],
+["zusammenfassend","in summary"],["abschließend","in conclusion"],["offenbar","apparently"],["scheinbar","seemingly"],
+["anscheinend","apparently"],["zweifellos","undoubtedly"],["keineswegs","by no means"],["durchaus","quite, thoroughly"],
+["ohnehin","anyway"],["sowieso","anyway"],["immerhin","at least, after all"],["zumindest","at least"],
+["allenfalls","at most, if anything"],["erst recht","all the more"],["umso mehr","all the more"],
+["teilweise","partly"],["überwiegend","predominantly"],["hauptsächlich","mainly"],["größtenteils","for the most part"],
+["weitgehend","largely"],["zunehmend","increasingly"],["allmählich","gradually"],["nach und nach","little by little"],
+["auf einmal","all at once"],["gegebenenfalls","if applicable, if necessary"],
+];
+
+const PHRASES_B1 = [
+["Ich bin der Ansicht, dass ...","I take the view that ..."],["Ich vertrete die Meinung, dass ...","I hold the opinion that ..."],
+["Es steht fest, dass ...","It is certain that ..."],["Man muss bedenken, dass ...","One has to consider that ..."],
+["Es ist zu berücksichtigen, dass ...","It should be taken into account that ..."],
+["Dafür spricht, dass ...","One argument in favour is that ..."],["Dagegen spricht, dass ...","One argument against is that ..."],
+["Ein Vorteil / Nachteil besteht darin, dass ...","One advantage / disadvantage is that ..."],
+["Es liegt daran, dass ...","It's due to the fact that ..."],["Das hat zur Folge, dass ...","The consequence of this is that ..."],
+["Daraus folgt, dass ...","It follows from this that ..."],["Das führt dazu, dass ...","That leads to ..."],
+["Im Großen und Ganzen ...","By and large ..."],["Alles in allem ...","All in all ..."],
+["Zusammenfassend lässt sich sagen, dass ...","In summary, one can say that ..."],["Aus meiner Sicht ...","From my point of view ..."],
+["Soweit ich weiß, ...","As far as I know ..."],["Wenn ich mich nicht irre, ...","If I'm not mistaken ..."],
+["Ich möchte darauf hinweisen, dass ...","I'd like to point out that ..."],
+["Ich kann gut nachvollziehen, dass ...","I can well understand that ..."],["Das leuchtet mir ein.","That makes sense to me."],
+["Da haben Sie recht, allerdings ...","You're right there, however ..."],["Das sehe ich anders.","I see it differently."],
+["Ich bin damit nicht einverstanden.","I don't agree with that."],["Das halte ich für übertrieben.","I think that's exaggerated."],
+["Es kommt ganz darauf an, ob ...","It really depends whether ..."],["Einerseits ..., andererseits ...","On the one hand ..., on the other ..."],
+["Ich würde vorschlagen, dass ...","I would suggest that ..."],["An deiner Stelle würde ich ...","If I were you, I would ..."],
+["Es wäre besser, wenn ...","It would be better if ..."],["Ich hätte es anders gemacht.","I would have done it differently."],
+["Hätte ich das gewusst, ...","Had I known that, ..."],["Es lässt sich nicht leugnen, dass ...","It cannot be denied that ..."],
+["Man sollte nicht vergessen, dass ...","One shouldn't forget that ..."],["Es besteht die Gefahr, dass ...","There is a risk that ..."],
+["Es besteht kein Zweifel daran, dass ...","There is no doubt that ..."],["Meines Erachtens ...","In my judgement ..."],
+["Nach Angaben von ...","According to (a source) ..."],["Laut einer Studie ...","According to a study ..."],
+["Die Zahlen zeigen, dass ...","The figures show that ..."],["Im Vergleich zum Vorjahr ...","Compared with the previous year ..."],
+["Es fällt auf, dass ...","It is noticeable that ..."],["Ich möchte mich beschweren über ...","I'd like to complain about ..."],
+["Ich wende mich an Sie, weil ...","I am contacting you because ..."],["Mit freundlichen Grüßen","Yours sincerely (formal letter)"],
+["Sehr geehrte Damen und Herren,","Dear Sir or Madam,"],["Ich freue mich auf Ihre Antwort.","I look forward to your reply."],
+["Vielen Dank im Voraus.","Many thanks in advance."],["Für Rückfragen stehe ich zur Verfügung.","I'm available for any questions."],
+["Ich würde mich sehr freuen, wenn ...","I would be delighted if ..."],
+];
+
 function buildData() {
   const items = [];
   let id = 0;
-  NOUNS_DER.forEach(([w, m]) => items.push({ id: id++, de: `der ${w}`, en: m, cat: "der" }));
-  NOUNS_DIE.forEach(([w, m]) => items.push({ id: id++, de: `die ${w}`, en: m, cat: "die" }));
-  NOUNS_DAS.forEach(([w, m]) => items.push({ id: id++, de: `das ${w}`, en: m, cat: "das" }));
-  ADJECTIVES.forEach(([w, m]) => items.push({ id: id++, de: w, en: m, cat: "adj" }));
-  VERBS.forEach(([w, m]) => items.push({ id: id++, de: w, en: m, cat: "verb" }));
-  FUNCTION_WORDS.forEach(([w, m]) => items.push({ id: id++, de: w, en: m, cat: "func" }));
-  PHRASES.forEach(([w, m]) => items.push({ id: id++, de: w, en: m, cat: "phrase" }));
+  const addNouns = (arr, artikel, cat, lvl) => arr.forEach(([w, m]) => items.push({ id: id++, de: `${artikel} ${w}`, en: m, cat, lvl }));
+  const addPlain = (arr, cat, lvl) => arr.forEach(([w, m]) => items.push({ id: id++, de: w, en: m, cat, lvl }));
+
+  addNouns(NOUNS_DER_A1, "der", "der", "A1");
+  addNouns(NOUNS_DIE_A1, "die", "die", "A1");
+  addNouns(NOUNS_DAS_A1, "das", "das", "A1");
+  addPlain(ADJECTIVES_A1, "adj", "A1");
+  addPlain(VERBS_A1, "verb", "A1");
+  addPlain(FUNCTION_WORDS_A1, "func", "A1");
+  addPlain(PHRASES_A1, "phrase", "A1");
+
+  addNouns(NOUNS_DER, "der", "der", "A2");
+  addNouns(NOUNS_DIE, "die", "die", "A2");
+  addNouns(NOUNS_DAS, "das", "das", "A2");
+  addPlain(ADJECTIVES, "adj", "A2");
+  addPlain(VERBS, "verb", "A2");
+  addPlain(FUNCTION_WORDS, "func", "A2");
+  addPlain(PHRASES, "phrase", "A2");
+
+  addNouns(NOUNS_DER_B1, "der", "der", "B1");
+  addNouns(NOUNS_DIE_B1, "die", "die", "B1");
+  addNouns(NOUNS_DAS_B1, "das", "das", "B1");
+  addPlain(ADJECTIVES_B1, "adj", "B1");
+  addPlain(VERBS_B1, "verb", "B1");
+  addPlain(FUNCTION_WORDS_B1, "func", "B1");
+  addPlain(PHRASES_B1, "phrase", "B1");
+
   return items;
 }
 
 const ALL_DATA = buildData();
 const CATS = ["der", "die", "das", "adj", "verb", "func", "phrase"];
+const LEVELS = ["A1", "A2", "B1"];
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -445,6 +910,34 @@ function NoRepeatToggle({ noRepeat, onChange }) {
       >
         {noRepeat ? "✓ no repeats" : "no repeats: off"}
       </button>
+    </div>
+  );
+}
+
+function LevelToggle({ level, onChange }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", gap: "0" }}>
+      {LEVELS.map((lv, i) => (
+        <button
+          key={lv}
+          onClick={() => onChange(lv)}
+          style={{
+            fontFamily: "'Courier New', monospace",
+            fontSize: "12px",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            padding: "7px 18px",
+            border: "1px solid #2b2620",
+            borderRight: i < LEVELS.length - 1 ? "none" : "1px solid #2b2620",
+            borderRadius: i === 0 ? "3px 0 0 3px" : i === LEVELS.length - 1 ? "0 3px 3px 0" : "0",
+            background: level === lv ? "#2b2620" : "transparent",
+            color: level === lv ? "#F6F1E5" : "#2b2620",
+            cursor: "pointer",
+          }}
+        >
+          {lv}
+        </button>
+      ))}
     </div>
   );
 }
@@ -1035,6 +1528,7 @@ const PROGRESS_DOC_ID = "harsimar-progress";
 function App() {
   const [mode, setMode] = useState("flash");
   const [activeCats, setActiveCats] = useState(CATS);
+  const [level, setLevel] = useState("A2");
   const [direction, setDirection] = useState("de-en");
   const [noRepeat, setNoRepeat] = useState(false);
   const [ready, setReady] = useState(false);
@@ -1045,7 +1539,8 @@ function App() {
     setActiveCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }, []);
 
-  const pool = useMemo(() => ALL_DATA.filter((d) => activeCats.includes(d.cat)), [activeCats]);
+  const levelData = useMemo(() => ALL_DATA.filter((d) => d.lvl === level), [level]);
+  const pool = useMemo(() => levelData.filter((d) => activeCats.includes(d.cat)), [levelData, activeCats]);
 
   const loadSessions = useCallback(() => {
     const fb = getFirebase();
@@ -1121,13 +1616,15 @@ function App() {
       <div style={{ maxWidth: "560px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "22px" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.18em", color: "#8a8372", marginBottom: "4px" }}>
-            A2 · WAYSTAGE
+            {level === "A1" ? "A1 · BREAKTHROUGH" : level === "B1" ? "B1 · THRESHOLD" : "A2 · WAYSTAGE"}
           </div>
           <div style={{ fontSize: "28px", color: "#2b2620" }}>Deutscher Wortschatz</div>
           <div style={{ fontSize: "13px", color: "#8a8372", marginTop: "2px" }}>
-            {ALL_DATA.length} cards — nouns, verbs, adjectives, connectors &amp; phrases
+            {levelData.length} cards — nouns, verbs, adjectives, connectors &amp; phrases
           </div>
         </div>
+
+        <LevelToggle level={level} onChange={setLevel} />
 
         <FilterBar active={activeCats} onToggle={toggleCat} />
 
@@ -1168,9 +1665,4 @@ function App() {
   );
 }
 
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
-</script>
-</body>
-</html>
+const root=ReactDOM.createRoot(document.getElementById("root"));root.render(<App/>);</script></body></html>

@@ -1,5 +1,4 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#F6F1E5"><title>Deutscher Wortschatz — A2</title><script src="https://unpkg.com/react@18/umd/react.development.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script><script src="https://unpkg.com/@babel/standalone/babel.min.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script><style>html,body,#root{margin:0;min-height:100%;background:#F6F1E5}button{touch-action:manipulation}</style></head><body><div id="root"></div><script type="text/babel">const {useState,useMemo,useCallback}=React;
-// ---------- FIREBASE ----------
+<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A2 Vocab Trainer</title><script src="https://unpkg.com/react@18/umd/react.development.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script><script src="https://unpkg.com/@babel/standalone/babel.min.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script><style>html,body,#root{margin:0;min-height:100%;background:#F6F1E5}body{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}</style></head><body><div id="root"></div><script type="text/babel">const {useState,useMemo,useCallback}=React;// ---------- FIREBASE ----------
 // Requires the Firebase compat SDKs loaded as <script> tags before this
 // component runs (they expose a global `firebase` object — no bundler/import
 // needed since this file ships as plain Babel-in-browser JS):
@@ -866,6 +865,98 @@ function answerText(card, direction) {
   return direction === "en-de" ? card.de : card.en;
 }
 
+// Deterministic, grammatically-safe example sentence for a card.
+// For nouns: a "gender character" mnemonic — der=strong, die=pretty, das=little —
+// with a consistent color + icon so the article sticks through vivid association.
+// Attributive adjective after der/die/das in nominative singular always takes -e (weak
+// declension), so these are grammatically correct for every noun.
+const GENDER_STYLE = {
+  der: { color: "#3A5A8C", icon: "💪", adjs: ["stark", "cool", "groß", "mutig", "wild"] },
+  die: { color: "#A5354A", icon: "🌸", adjs: ["schön", "elegant", "toll", "hübsch", "edel"] },
+  das: { color: "#3F7A55", icon: "🐣", adjs: ["klein", "süß", "niedlich", "jung", "lieb"] },
+};
+const DIE_PLURAL_ADJS = ["lieb", "toll", "nett", "wild"];
+function hashPick(seed, arr) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return arr[h % arr.length];
+}
+function exampleSentence(card) {
+  const cat = card.cat;
+  if (cat === "der" || cat === "die" || cat === "das") {
+    let de = card.de;
+    const isPl = /\(Pl\.\)/.test(de);
+    de = de.replace(/\s*\((Pl\.|WG)\)/g, "").trim();
+    const m = de.match(/^(der|die|das)\s+(.+)$/);
+    let art = cat, noun = de;
+    if (m) {
+      art = m[1];
+      noun = m[2].split(" / ")[0].trim();
+    }
+    const Art = art.charAt(0).toUpperCase() + art.slice(1);
+    const style = GENDER_STYLE[art];
+    // article + noun stay together at the front; predicate adjective (uninflected) is always correct
+    if (isPl) {
+      const adj = hashPick(de, DIE_PLURAL_ADJS);
+      return `${style.icon} Die ${noun} sind ${adj}!`;
+    }
+    const adj = hashPick(de, style.adjs);
+    return `${style.icon} ${Art} ${noun} ist ${adj}!`;
+  }
+  if (cat === "adj") {
+    const a = card.de.split(" / ")[0].trim();
+    return `Es ist ${a}.`;
+  }
+  if (cat === "verb") {
+    let v = card.de.split(" / ")[0].trim();
+    const reflexive = /\bsich\b|\(sich\)/.test(v);
+    v = v.replace(/\s*\(sich\)/g, "").replace(/\bsich\b/g, "").trim();
+    v = v.replace(/\s*\([^)]*\)/g, "").trim();
+    v = v.replace(/\s+(auf|mit|an|um|für|über|von|zu|nach|aus|in|bei|vor)$/, "").trim();
+    v = v.replace(/\s{2,}/g, " ").trim();
+    if (reflexive) return `Ich möchte mich ${v}.`;
+    return `Ich möchte ${v}.`;
+  }
+  return null; // function words & phrases are already usage examples — no frame needed
+}
+
+function ExampleLine({ card }) {
+  const sentence = exampleSentence(card);
+  if (!sentence) return null;
+  const isNoun = card.cat === "der" || card.cat === "die" || card.cat === "das";
+  if (isNoun) {
+    const color = (GENDER_STYLE[card.cat] || {}).color || "#2b2620";
+    return (
+      <div
+        style={{
+          fontFamily: "Georgia, serif",
+          fontWeight: 700,
+          fontSize: "22px",
+          color: color,
+          textAlign: "center",
+          padding: "6px 0",
+        }}
+      >
+        {sentence}
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        fontFamily: "Georgia, serif",
+        fontStyle: "italic",
+        fontSize: "16px",
+        color: "#3F7A55",
+        textAlign: "center",
+        padding: "4px 0",
+      }}
+    >
+      {sentence}
+    </div>
+  );
+}
+
 function DirectionToggle({ direction, onChange }) {
   return (
     <div style={{ display: "flex", justifyContent: "center" }}>
@@ -1300,6 +1391,8 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, direction, noR
         })}
       </div>
 
+      {picked && <ExampleLine card={q.correct} />}
+
       {picked && (
         <button onClick={nextQ} style={navBtnStyle}>next question ›</button>
       )}
@@ -1514,6 +1607,8 @@ function ArticleQuiz({ pool, noRepeat }) {
         })}
       </div>
 
+      {picked && <ExampleLine card={word} />}
+
       {picked && (
         <button onClick={nextQ} style={navBtnStyle}>next question ›</button>
       )}
@@ -1524,7 +1619,6 @@ function ArticleQuiz({ pool, noRepeat }) {
 // A single fixed record shared by every browser/device — since this trainer
 // is for one person only, there's no need for a separate identity per browser.
 const PROGRESS_DOC_ID = "harsimar-progress";
-
 function App() {
   const [mode, setMode] = useState("flash");
   const [activeCats, setActiveCats] = useState(CATS);
@@ -1665,4 +1759,4 @@ function App() {
   );
 }
 
-const root=ReactDOM.createRoot(document.getElementById("root"));root.render(<App/>);</script></body></html>
+const root=ReactDOM.createRoot(document.getElementById('root'));root.render(<App/>);</script></body></html>

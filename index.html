@@ -691,7 +691,12 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, onClearHistory
 
       <div style={{ textAlign: "center" }}>
         <div style={{ marginBottom: "8px" }}><CatChip cat={q.correct.cat} /></div>
-        <div style={{ fontFamily: "Georgia, serif", fontSize: "26px", color: "#2b2620" }}>{promptText(q.correct, direction)}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
+          <div style={{ fontFamily: "Georgia, serif", fontSize: "26px", color: "#2b2620" }}>{promptText(q.correct, direction)}</div>
+          {picked && (
+            <button onClick={nextQ} style={navBtnStyle}>next ›</button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "min(420px, 90vw)" }}>
@@ -730,10 +735,6 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, onClearHistory
       </div>
 
       {picked && <ExampleLine card={q.correct} />}
-
-      {picked && (
-        <button onClick={nextQ} style={navBtnStyle}>next question ›</button>
-      )}
 
       {score.total > 0 && (
         <button
@@ -946,7 +947,12 @@ function ArticleQuiz({ pool, noRepeat }) {
       )}
 
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: "Georgia, serif", fontSize: "30px", color: "#2b2620" }}>{bare}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
+          <div style={{ fontFamily: "Georgia, serif", fontSize: "30px", color: "#2b2620" }}>{bare}</div>
+          {picked && (
+            <button onClick={nextQ} style={navBtnStyle}>next ›</button>
+          )}
+        </div>
         <div style={{ fontFamily: "Georgia, serif", fontSize: "14px", color: "#8a8372", marginTop: "6px" }}>{word.en}</div>
       </div>
 
@@ -981,10 +987,6 @@ function ArticleQuiz({ pool, noRepeat }) {
       </div>
 
       {picked && <ExampleLine card={word} />}
-
-      {picked && (
-        <button onClick={nextQ} style={navBtnStyle}>next question ›</button>
-      )}
     </div>
   );
 }

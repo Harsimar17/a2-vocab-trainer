@@ -998,6 +998,7 @@ function App() {
   const [level, setLevel] = useState("A2");
   const [direction, setDirection] = useState("de-en");
   const [noRepeat, setNoRepeat] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [allTime, setAllTime] = useState({ right: 0, total: 0 });
   const [sessions, setSessions] = useState([]);
@@ -1160,7 +1161,7 @@ function App() {
         fontFamily: "Georgia, serif",
       }}
     >
-      <div style={{ maxWidth: "560px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "22px" }}>
+      <div style={{ maxWidth: "560px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "16px" }}>
         <div style={{ textAlign: "center" }}>
           <div
             style={{
@@ -1187,9 +1188,37 @@ function App() {
           </div>
         </div>
 
-        <LevelToggle level={level} onChange={setLevel} />
+        <div style={{ textAlign: "center" }}>
+          <button
+            onClick={() => setSettingsOpen((o) => !o)}
+            style={{
+              fontFamily: "'Courier New', monospace",
+              fontSize: "11px",
+              letterSpacing: "0.06em",
+              color: "#8a8372",
+              background: "transparent",
+              border: "1px solid #d8cfb8",
+              borderRadius: "12px",
+              padding: "6px 14px",
+              cursor: "pointer",
+              maxWidth: "100%",
+            }}
+          >
+            {settingsOpen ? "▾" : "▸"} {level} · {activeCats.length === CATS.length ? "all categories" : `${activeCats.length}/${CATS.length} categories`} · {direction === "de-en" ? "DE→EN" : "EN→DE"}
+            {noRepeat ? " · no repeats" : ""}
+          </button>
+        </div>
 
-        <FilterBar active={activeCats} onToggle={toggleCat} />
+        {settingsOpen && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <LevelToggle level={level} onChange={setLevel} />
+            <FilterBar active={activeCats} onToggle={toggleCat} />
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" }}>
+              <DirectionToggle direction={direction} onChange={setDirection} />
+              <NoRepeatToggle noRepeat={noRepeat} onChange={setNoRepeat} />
+            </div>
+          </div>
+        )}
 
         <div style={{ display: "flex", justifyContent: "center", gap: "0" }}>
           {["flash", "quiz", "articles"].map((m, i) => (
@@ -1214,9 +1243,6 @@ function App() {
             </button>
           ))}
         </div>
-
-        <DirectionToggle direction={direction} onChange={setDirection} />
-        <NoRepeatToggle noRepeat={noRepeat} onChange={setNoRepeat} />
 
         <div style={{ marginTop: "6px" }}>
           {mode === "flash" && <Flashcards pool={pool} allData={allData} direction={direction} noRepeat={noRepeat} />}

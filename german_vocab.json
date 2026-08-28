@@ -5682,6 +5682,20 @@
             "word": "Zweifel",
             "en": "doubt",
             "example": "Der Zweifel bleibt."
+          },
+          {
+            "de": "der Regenschirm",
+            "article": "der",
+            "word": "Regenschirm",
+            "en": "umbrella",
+            "example": "Der Regenschirm ist im Auto."
+          },
+          {
+            "de": "der Kamm",
+            "article": "der",
+            "word": "Kamm",
+            "en": "comb",
+            "example": "Der Kamm liegt im Badezimmer."
           }
         ],
         "die": [
@@ -7098,6 +7112,13 @@
             "word": "Zutat",
             "en": "ingredient",
             "example": "Die Zutat ist frisch."
+          },
+          {
+            "de": "die Kerze",
+            "article": "die",
+            "word": "Kerze",
+            "en": "candle",
+            "example": "Die Kerze brennt auf dem Tisch."
           }
         ],
         "das": [
@@ -7534,6 +7555,13 @@
             "word": "Ziel",
             "en": "goal, aim",
             "example": "Das Ziel ist klar."
+          },
+          {
+            "de": "das Bügeleisen",
+            "article": "das",
+            "word": "Bügeleisen",
+            "en": "iron (for clothes)",
+            "example": "Das Bügeleisen ist heiß."
           }
         ]
       },
@@ -7981,6 +8009,14 @@
         {
           "de": "berufstätig",
           "en": "employed, working"
+        },
+        {
+          "de": "stressig",
+          "en": "stressful"
+        },
+        {
+          "de": "chaotisch",
+          "en": "chaotic"
         }
       ],
       "verbs": [
@@ -8595,6 +8631,14 @@
         {
           "de": "anbieten",
           "en": "to offer"
+        },
+        {
+          "de": "gähnen",
+          "en": "to yawn"
+        },
+        {
+          "de": "frieren",
+          "en": "to freeze, be cold"
         }
       ],
       "function_words": [
@@ -8957,6 +9001,10 @@
         {
           "de": "gegen (Zeit)",
           "en": "around (time)"
+        },
+        {
+          "de": "entweder...oder",
+          "en": "either...or"
         }
       ],
       "phrases": [
@@ -9155,6 +9203,10 @@
         {
           "de": "Gute Reise! / Gute Fahrt!",
           "en": "Have a good trip!"
+        },
+        {
+          "de": "Gesundheit!",
+          "en": "Bless you!"
         }
       ]
     },
@@ -13238,13 +13290,13 @@
       "phrase": 48
     },
     "A2": {
-      "der": 110,
-      "die": 202,
-      "das": 62,
-      "adj": 111,
-      "verb": 153,
-      "func": 90,
-      "phrase": 49
+      "der": 112,
+      "die": 203,
+      "das": 63,
+      "adj": 113,
+      "verb": 155,
+      "func": 91,
+      "phrase": 50
     },
     "B1": {
       "der": 77,

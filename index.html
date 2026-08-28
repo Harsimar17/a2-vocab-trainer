@@ -129,6 +129,7 @@ function buildDataFromJson(json) {
 
 const CATS = ["der", "die", "das", "adj", "verb", "func", "phrase"];
 const LEVELS = ["A1", "A2", "B1"];
+const LEVEL_META = { A1: "BREAKTHROUGH", A2: "WAYSTAGE", B1: "THRESHOLD" };
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -342,30 +343,34 @@ function NoRepeatToggle({ noRepeat, onChange }) {
   );
 }
 
-function LevelToggle({ level, onChange }) {
+// Multi-select: any combination of A1 / A2 / B1 can be active at once.
+function LevelToggle({ levels, onToggle }) {
   return (
     <div style={{ display: "flex", justifyContent: "center", gap: "0" }}>
-      {LEVELS.map((lv, i) => (
-        <button
-          key={lv}
-          onClick={() => onChange(lv)}
-          style={{
-            fontFamily: "'Courier New', monospace",
-            fontSize: "12px",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            padding: "7px 18px",
-            border: "1px solid #2b2620",
-            borderRight: i < LEVELS.length - 1 ? "none" : "1px solid #2b2620",
-            borderRadius: i === 0 ? "3px 0 0 3px" : i === LEVELS.length - 1 ? "0 3px 3px 0" : "0",
-            background: level === lv ? "#2b2620" : "transparent",
-            color: level === lv ? "#F6F1E5" : "#2b2620",
-            cursor: "pointer",
-          }}
-        >
-          {lv}
-        </button>
-      ))}
+      {LEVELS.map((lv, i) => {
+        const on = levels.includes(lv);
+        return (
+          <button
+            key={lv}
+            onClick={() => onToggle(lv)}
+            style={{
+              fontFamily: "'Courier New', monospace",
+              fontSize: "12px",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              padding: "7px 18px",
+              border: "1px solid #2b2620",
+              borderRight: i < LEVELS.length - 1 ? "none" : "1px solid #2b2620",
+              borderRadius: i === 0 ? "3px 0 0 3px" : i === LEVELS.length - 1 ? "0 3px 3px 0" : "0",
+              background: on ? "#2b2620" : "transparent",
+              color: on ? "#F6F1E5" : "#2b2620",
+              cursor: "pointer",
+            }}
+          >
+            {lv}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -997,7 +1002,7 @@ const PROGRESS_DOC_ID = "harsimar-progress";
 function App() {
   const [mode, setMode] = useState("flash");
   const [activeCats, setActiveCats] = useState(CATS);
-  const [level, setLevel] = useState("A2");
+  const [levels, setLevels] = useState(["A2"]);
   const [direction, setDirection] = useState("de-en");
   const [noRepeat, setNoRepeat] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1012,6 +1017,16 @@ function App() {
 
   const toggleCat = useCallback((c) => {
     setActiveCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  }, []);
+
+  const toggleLevel = useCallback((lv) => {
+    setLevels((prev) => {
+      if (prev.includes(lv)) {
+        // keep at least one level selected
+        return prev.length === 1 ? prev : prev.filter((x) => x !== lv);
+      }
+      return LEVELS.filter((x) => x === lv || prev.includes(x));
+    });
   }, []);
 
   React.useEffect(() => {
@@ -1039,7 +1054,7 @@ function App() {
     };
   }, [loadAttempt]);
 
-  const levelData = useMemo(() => (allData ? allData.filter((d) => d.lvl === level) : []), [allData, level]);
+  const levelData = useMemo(() => (allData ? allData.filter((d) => levels.includes(d.lvl)) : []), [allData, levels]);
   const pool = useMemo(() => levelData.filter((d) => activeCats.includes(d.cat)), [levelData, activeCats]);
 
   const loadSessions = useCallback(() => {
@@ -1182,7 +1197,9 @@ function App() {
             ⇣ data fetched from JSON file
           </div>
           <div style={{ fontFamily: "'Courier New', monospace", fontSize: "11px", letterSpacing: "0.18em", color: "#8a8372", marginBottom: "4px" }}>
-            {level === "A1" ? "A1 · BREAKTHROUGH" : level === "B1" ? "B1 · THRESHOLD" : "A2 · WAYSTAGE"}
+            {levels.length === 1
+              ? `${levels[0]} · ${LEVEL_META[levels[0]]}`
+              : LEVELS.filter((lv) => levels.includes(lv)).join(" + ")}
           </div>
           <div style={{ fontSize: "28px", color: "#2b2620" }}>Deutscher Wortschatz</div>
           <div style={{ fontSize: "13px", color: "#8a8372", marginTop: "2px" }}>
@@ -1206,14 +1223,14 @@ function App() {
               maxWidth: "100%",
             }}
           >
-            {settingsOpen ? "▾" : "▸"} {level} · {activeCats.length === CATS.length ? "all categories" : `${activeCats.length}/${CATS.length} categories`} · {direction === "de-en" ? "DE→EN" : "EN→DE"}
+            {settingsOpen ? "▾" : "▸"} {LEVELS.filter((lv) => levels.includes(lv)).join("+")} · {activeCats.length === CATS.length ? "all categories" : `${activeCats.length}/${CATS.length} categories`} · {direction === "de-en" ? "DE→EN" : "EN→DE"}
             {noRepeat ? " · no repeats" : ""}
           </button>
         </div>
 
         {settingsOpen && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <LevelToggle level={level} onChange={setLevel} />
+            <LevelToggle levels={levels} onToggle={toggleLevel} />
             <FilterBar active={activeCats} onToggle={toggleCat} />
             <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" }}>
               <DirectionToggle direction={direction} onChange={setDirection} />

@@ -178,6 +178,63 @@ function shuffle(arr) {
   return a;
 }
 
+// ---------- PRONUNCIATION (Web Speech API) ----------
+// Speaks German text aloud using the browser's built-in speech synthesis.
+// Works offline on iOS/Safari (uses the system German voice when present).
+function speakGerman(text) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  const clean = String(text || "")
+    .replace(/\([^)]*\)/g, " ")      // drop parenthetical notes: (Pl.), (sich) …
+    .replace(/\s*\/\s*/g, ", ")       // "der Hund / die Hündin" → natural pause
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!clean) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = "de-DE";
+    u.rate = 0.9;
+    const de = (window.speechSynthesis.getVoices() || []).find((v) => /^de(-|_)/i.test(v.lang));
+    if (de) u.voice = de;
+    window.speechSynthesis.speak(u);
+  } catch (e) {
+    /* speech unsupported — silently no-op */
+  }
+}
+// Prime the voice list early (some browsers populate it lazily).
+if (typeof window !== "undefined" && window.speechSynthesis) {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+function SpeakButton({ text, size = 36 }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); speakGerman(text); }}
+      aria-label={"Hear " + text + " pronounced"}
+      title="Hear pronunciation"
+      style={{
+        flexShrink: 0,
+        width: size,
+        height: size,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "999px",
+        border: "1px solid var(--line)",
+        background: "var(--paper-raised)",
+        color: "var(--accent)",
+        fontSize: Math.round(size * 0.46),
+        lineHeight: 1,
+        cursor: "pointer",
+        boxShadow: "var(--shadow-soft)",
+      }}
+    >
+      🔊
+    </button>
+  );
+}
+
 function CatChip({ cat }) {
   const meta = CATEGORY_META[cat];
   return (
@@ -549,18 +606,21 @@ function Flashcards({ pool, allData, direction, noRepeat }) {
             }}
           >
             <CatChip cat={card.cat} />
-            <div
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontWeight: 600,
-                fontSize: front.length > 28 ? "20px" : front.length > 16 ? "26px" : "34px",
-                lineHeight: 1.25,
-                letterSpacing: "-0.01em",
-                color: "#2b2620",
-                textAlign: "center",
-              }}
-            >
-              {front}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px" }}>
+              {direction === "de-en" && <SpeakButton text={card.de} />}
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontWeight: 600,
+                  fontSize: front.length > 28 ? "20px" : front.length > 16 ? "26px" : "34px",
+                  lineHeight: 1.25,
+                  letterSpacing: "-0.01em",
+                  color: "#2b2620",
+                  textAlign: "center",
+                }}
+              >
+                {front}
+              </div>
             </div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.16em", textTransform: "uppercase", color: "#b0a888" }}>
               tap to reveal
@@ -582,19 +642,22 @@ function Flashcards({ pool, allData, direction, noRepeat }) {
               padding: "28px",
             }}
           >
-            <div
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontWeight: 600,
-                fontSize: back.length > 28 ? "19px" : "25px",
-                lineHeight: 1.3,
-                letterSpacing: "-0.01em",
-                color: "#FCF8EE",
-                textAlign: "center",
-                textShadow: "0 1px 8px rgba(0,0,0,.18)",
-              }}
-            >
-              {back}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px" }}>
+              {direction === "en-de" && <SpeakButton text={card.de} />}
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontWeight: 600,
+                  fontSize: back.length > 28 ? "19px" : "25px",
+                  lineHeight: 1.3,
+                  letterSpacing: "-0.01em",
+                  color: "#FCF8EE",
+                  textAlign: "center",
+                  textShadow: "0 1px 8px rgba(0,0,0,.18)",
+                }}
+              >
+                {back}
+              </div>
             </div>
           </div>
         </div>
@@ -761,7 +824,9 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, onClearHistory
       <div style={{ textAlign: "center" }}>
         <div style={{ marginBottom: "10px" }}><CatChip cat={q.correct.cat} /></div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", flexWrap: "wrap" }}>
+          {direction === "de-en" && <SpeakButton text={q.correct.de} />}
           <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "30px", letterSpacing: "-0.01em", color: "var(--ink)" }}>{promptText(q.correct, direction)}</div>
+          {direction === "en-de" && picked && <SpeakButton text={q.correct.de} />}
           {picked && (
             <button onClick={nextQ} style={navBtnStyle}>next ›</button>
           )}
@@ -1024,6 +1089,7 @@ function ArticleQuiz({ pool, noRepeat }) {
 
       <div style={{ textAlign: "center" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", flexWrap: "wrap" }}>
+          <SpeakButton text={picked ? word.de : bare} />
           <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "34px", letterSpacing: "-0.01em", color: "var(--ink)" }}>{bare}</div>
           {picked && (
             <button onClick={nextQ} style={navBtnStyle}>next ›</button>
@@ -1250,8 +1316,11 @@ function ClozeQuiz({ pool, noRepeat }) {
           {q.hit.after}
         </div>
         {picked && (
-          <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "14px", color: "var(--ink-soft)", marginTop: "14px" }}>
-            {q.correct.de} · {q.correct.en}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", marginTop: "14px" }}>
+            <SpeakButton text={(q.hit.before + q.hit.answer + q.hit.after).trim() || q.correct.de} size={30} />
+            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "14px", color: "var(--ink-soft)" }}>
+              {q.correct.de} · {q.correct.en}
+            </div>
           </div>
         )}
       </div>

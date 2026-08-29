@@ -167,6 +167,9 @@ function buildDataFromJson(json) {
 
 const CATS = ["der", "die", "das", "adj", "verb", "func", "phrase"];
 const LEVELS = ["A1", "A2", "B1"];
+// A word drilled in the Review tab (or missed anywhere) leaves the review list
+// after this many correct answers; a fresh miss resets that progress to 0.
+const REVIEW_CLEARS = 2;
 const LEVEL_META = { A1: "BREAKTHROUGH", A2: "WAYSTAGE", B1: "THRESHOLD" };
 
 function shuffle(arr) {
@@ -489,7 +492,7 @@ function LevelToggle({ levels, onToggle }) {
   );
 }
 
-function Flashcards({ pool, allData, direction, noRepeat }) {
+function Flashcards({ pool, allData, direction, noRepeat, onResult }) {
   const [order, setOrder] = useState(() => shuffle(pool.map((d) => d.id)));
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -668,6 +671,23 @@ function Flashcards({ pool, allData, direction, noRepeat }) {
         <button onClick={reshuffle} style={navBtnStyle}>⟲ shuffle</button>
         <button onClick={next} style={navBtnStyle}>next ›</button>
       </div>
+
+      {flipped && onResult && (
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            onClick={() => { onResult(card.id, false); next(); }}
+            style={{ ...navBtnStyle, background: "transparent", color: "#A5354A", border: "1px solid #A5354A", boxShadow: "none" }}
+          >
+            ✗ review this
+          </button>
+          <button
+            onClick={() => { onResult(card.id, true); next(); }}
+            style={{ ...navBtnStyle, background: "transparent", color: "#3F7A55", border: "1px solid #3F7A55", boxShadow: "none" }}
+          >
+            ✓ knew it
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -697,7 +717,7 @@ function makeQuestion(pool, correctPool) {
   return { correct, options };
 }
 
-function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, onClearHistory, direction, noRepeat }) {
+function Quiz({ pool, allTime, onAnswer, onResult, sessions, onSaveSession, onClearHistory, direction, noRepeat }) {
   const [askedIds, setAskedIds] = useState(() => new Set());
   const [q, setQ] = useState(() => makeQuestion(pool));
   const [picked, setPicked] = useState(null);
@@ -733,6 +753,7 @@ function Quiz({ pool, allTime, onAnswer, sessions, onSaveSession, onClearHistory
     setScore((s) => ({ right: s.right + (correct ? 1 : 0), total: s.total + 1 }));
     setSaved(false);
     onAnswer && onAnswer(correct);
+    onResult && onResult(q.correct.id, correct);
   };
 
   const nextQ = () => {
@@ -986,7 +1007,7 @@ function makeArticleQuestion(nounPool, correctPool) {
   return word;
 }
 
-function ArticleQuiz({ pool, noRepeat }) {
+function ArticleQuiz({ pool, noRepeat, onResult }) {
   const nounPool = useMemo(() => pool.filter((d) => d.cat === "der" || d.cat === "die" || d.cat === "das"), [pool]);
 
   const [askedIds, setAskedIds] = useState(() => new Set());
@@ -1024,6 +1045,7 @@ function ArticleQuiz({ pool, noRepeat }) {
     const correct = article === word.cat;
     setScore((s) => ({ right: s.right + (correct ? 1 : 0), total: s.total + 1 }));
     setSaved(false);
+    onResult && onResult(word.id, correct);
   };
 
   const nextQ = () => {
@@ -1176,7 +1198,7 @@ function makeClozeQuestion(pool, correctPool) {
   return { correct, hit, options };
 }
 
-function ClozeQuiz({ pool, noRepeat }) {
+function ClozeQuiz({ pool, noRepeat, onResult }) {
   const clozePool = useMemo(
     () => pool.filter((d) => NOUN_CATS.includes(d.cat) && d.example && clozeMatch(d)),
     [pool]
@@ -1218,6 +1240,7 @@ function ClozeQuiz({ pool, noRepeat }) {
     setPicked(optId);
     const correct = optId === q.correct.id;
     setScore((s) => ({ right: s.right + (correct ? 1 : 0), total: s.total + 1 }));
+    onResult && onResult(q.correct.id, correct);
   };
 
   const nextQ = () => {
@@ -1370,6 +1393,183 @@ function ClozeQuiz({ pool, noRepeat }) {
   );
 }
 
+// ---------- REVIEW (re-test past mistakes) ----------
+// Drills the words in `mistakes` — anything missed in Quiz / Articles / Fill-in,
+// or flagged with "✗ review this" on a flashcard. Same 4-option meaning test as
+// Quiz; a word leaves the list once answered right REVIEW_CLEARS times, and any
+// fresh miss (in this tab or elsewhere) resets it. The list ignores the level /
+// category filters so mistakes never silently disappear from view.
+function MistakesReview({ mistakes, allData, direction, onResult, onClearAll }) {
+  const byId = useMemo(() => Object.fromEntries(allData.map((d) => [d.id, d])), [allData]);
+
+  // Snapshot the list at mount (the tab remounts on every switch via key={mode}),
+  // so clearing a word mid-round doesn't reshuffle the remaining questions.
+  const [queue, setQueue] = useState(() =>
+    shuffle(Object.keys(mistakes).map(Number).filter((id) => byId[id]))
+  );
+  const [pos, setPos] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [results, setResults] = useState({});
+  const [roundKey, setRoundKey] = useState(0);
+
+  const startRound = React.useCallback(
+    (ids) => {
+      const base = (ids && ids.length ? ids : Object.keys(mistakes).map(Number)).filter((id) => byId[id]);
+      setQueue(shuffle(base));
+      setPos(0);
+      setPicked(null);
+      setResults({});
+      setRoundKey((k) => k + 1);
+    },
+    [mistakes, byId]
+  );
+
+  const card = byId[queue[pos]];
+  const options = useMemo(() => {
+    if (!card) return [];
+    const sameCat = allData.filter((d) => d.cat === card.cat && d.id !== card.id);
+    const distractPool = sameCat.length >= 3 ? sameCat : allData.filter((d) => d.id !== card.id);
+    return shuffle([card, ...shuffle(distractPool).slice(0, 3)]);
+  }, [card, allData, pos, roundKey]);
+
+  const total = Object.keys(mistakes).length;
+
+  if (total === 0) {
+    return (
+      <p style={{ textAlign: "center", color: "var(--ink-soft)", maxWidth: "min(440px, 92vw)", margin: "0 auto", lineHeight: 1.7 }}>
+        Nothing to review yet. Words you miss in <strong>Quiz</strong>, <strong>Articles</strong> or <strong>Fill-in</strong> — or flag with <strong>✗&nbsp;review&nbsp;this</strong> on a card — collect here so you can drill them until they stick.
+      </p>
+    );
+  }
+
+  const done = pos >= queue.length;
+  if (done) {
+    const answered = Object.keys(results).length;
+    const gotRight = Object.values(results).filter(Boolean).length;
+    const stillTricky = queue.filter((id) => mistakes[id]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "32px 0" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "var(--ink-faint)" }}>
+          THIS ROUND {gotRight} / {answered} right
+        </div>
+        <div style={{ fontFamily: "var(--font-serif)", fontSize: "22px", color: "var(--ink)", textAlign: "center" }}>
+          {`${total} word${total === 1 ? "" : "s"} still on the list`}
+        </div>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+          {stillTricky.length > 0 && (
+            <button onClick={() => startRound(stillTricky)} style={navBtnStyle}>↻ keep drilling ({stillTricky.length})</button>
+          )}
+          <button onClick={() => startRound()} style={navBtnStyle}>⟲ review all {total}</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!card) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "32px 0" }}>
+        <button onClick={() => startRound()} style={navBtnStyle}>⟲ restart review</button>
+      </div>
+    );
+  }
+
+  const choose = (opt) => {
+    if (picked) return;
+    setPicked(opt);
+    const correct = opt.id === card.id;
+    setResults((r) => ({ ...r, [card.id]: correct }));
+    onResult && onResult(card.id, correct);
+  };
+  const next = () => {
+    setPicked(null);
+    setPos((p) => p + 1);
+  };
+
+  const info = mistakes[card.id] || {};
+  const clearsLeft = Math.max(0, REVIEW_CLEARS - (info.cleared || 0));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px" }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "var(--ink-faint)" }}>
+        REVIEW {pos + 1} / {queue.length}
+        <span style={{ marginLeft: "14px", color: "#b0a888" }}>· {total} on list</span>
+      </div>
+
+      <div style={{ textAlign: "center" }}>
+        <div style={{ marginBottom: "10px" }}><CatChip cat={card.cat} /></div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", flexWrap: "wrap" }}>
+          {direction === "de-en" && <SpeakButton text={card.de} />}
+          <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "30px", letterSpacing: "-0.01em", color: "var(--ink)" }}>
+            {promptText(card, direction)}
+          </div>
+          {direction === "en-de" && picked && <SpeakButton text={card.de} />}
+          {picked && <button onClick={next} style={navBtnStyle}>next ›</button>}
+        </div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-faint)", marginTop: "10px" }}>
+          {info.wrong ? `missed ${info.wrong}×  ·  ` : ""}{clearsLeft} more correct to clear
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "min(420px, 90vw)" }}>
+        {options.map((opt) => {
+          let bg = "var(--paper-raised)";
+          let border = "#e2d8c0";
+          let color = "var(--ink)";
+          let shadow = "var(--shadow-soft)";
+          if (picked) {
+            if (opt.id === card.id) {
+              bg = "linear-gradient(180deg,#458860,#3F7A55)"; border = "#3F7A55"; color = "#F6F1E5";
+              shadow = "0 10px 22px -10px rgba(63,122,85,.7)";
+            } else if (opt.id === picked.id) {
+              bg = "linear-gradient(180deg,#b23c52,#A5354A)"; border = "#A5354A"; color = "#F6F1E5";
+              shadow = "0 10px 22px -10px rgba(165,53,74,.7)";
+            } else {
+              bg = "transparent"; border = "#e2d8c0"; color = "var(--ink-faint)"; shadow = "none";
+            }
+          }
+          const optText = answerText(opt, direction);
+          return (
+            <button
+              key={opt.id}
+              onClick={() => choose(opt)}
+              style={{
+                textAlign: "left",
+                fontFamily: "var(--font-serif)",
+                fontWeight: 500,
+                fontSize: optText.length > 28 ? "14px" : "17px",
+                padding: "14px 18px",
+                borderRadius: "12px",
+                border: `1px solid ${border}`,
+                background: bg,
+                color,
+                boxShadow: shadow,
+                cursor: picked ? "default" : "pointer",
+              }}
+            >
+              {optText}
+            </button>
+          );
+        })}
+      </div>
+
+      {picked && <ExampleLine card={card} />}
+
+      <button
+        onClick={() => {
+          if (window.confirm("Clear the whole review list?")) onClearAll();
+        }}
+        style={{
+          fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "#A5354A", background: "transparent", border: "1px solid #A5354A", borderRadius: "10px",
+          padding: "4px 10px", cursor: "pointer",
+        }}
+      >
+        clear review list
+      </button>
+    </div>
+  );
+}
+
 // A single fixed record shared by every browser/device — since this trainer
 // is for one person only, there's no need for a separate identity per browser.
 const PROGRESS_DOC_ID = "harsimar-progress";
@@ -1383,6 +1583,23 @@ function App() {
   const [ready, setReady] = useState(false);
   const [allTime, setAllTime] = useState({ right: 0, total: 0 });
   const [sessions, setSessions] = useState([]);
+
+  // Words to re-test in the Review tab: { [cardId]: { wrong, cleared, ts } }.
+  // Kept in localStorage — this trainer is single-user and the list is small.
+  const [mistakes, setMistakes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("a2vocab.mistakes.v1")) || {};
+    } catch (e) {
+      return {};
+    }
+  });
+  React.useEffect(() => {
+    try {
+      localStorage.setItem("a2vocab.mistakes.v1", JSON.stringify(mistakes));
+    } catch (e) {
+      /* storage disabled / full — review list just won't persist */
+    }
+  }, [mistakes]);
 
   // Vocabulary is fetched at startup from VOCAB_DATA_URL rather than bundled here.
   const [allData, setAllData] = useState(null); // null while loading
@@ -1430,6 +1647,31 @@ function App() {
 
   const levelData = useMemo(() => (allData ? allData.filter((d) => levels.includes(d.lvl)) : []), [allData, levels]);
   const pool = useMemo(() => levelData.filter((d) => activeCats.includes(d.cat)), [levelData, activeCats]);
+  const mistakeCount = Object.keys(mistakes).length;
+
+  // One handler feeds the review list from every mode: a miss adds/refreshes the
+  // word, a hit chips away at it until it's cleared out.
+  const recordResult = useCallback((cardId, correct) => {
+    setMistakes((prev) => {
+      const cur = prev[cardId];
+      if (correct) {
+        if (!cur) return prev; // not on the list — nothing to track
+        const cleared = (cur.cleared || 0) + 1;
+        if (cleared >= REVIEW_CLEARS) {
+          const nextState = { ...prev };
+          delete nextState[cardId];
+          return nextState;
+        }
+        return { ...prev, [cardId]: { ...cur, cleared } };
+      }
+      return {
+        ...prev,
+        [cardId]: { wrong: ((cur && cur.wrong) || 0) + 1, cleared: 0, ts: Date.now() },
+      };
+    });
+  }, []);
+
+  const clearAllMistakes = useCallback(() => setMistakes({}), []);
 
   const loadSessions = useCallback(() => {
     const fb = getFirebase();
@@ -1616,7 +1858,7 @@ function App() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
+            gridTemplateColumns: "repeat(5, 1fr)",
             gap: "3px",
             padding: "3px",
             background: "#00000008",
@@ -1626,7 +1868,7 @@ function App() {
             width: "min(440px, 92vw)",
           }}
         >
-          {["flash", "quiz", "articles", "cloze"].map((m) => (
+          {["flash", "quiz", "articles", "cloze", "mistakes"].map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
@@ -1634,27 +1876,28 @@ function App() {
                 fontFamily: "var(--font-mono)",
                 fontSize: "10px",
                 fontWeight: 500,
-                letterSpacing: "0.04em",
+                letterSpacing: "0.02em",
                 textTransform: "uppercase",
-                padding: "9px 4px",
+                padding: "9px 3px",
                 border: "none",
                 borderRadius: "999px",
                 background: mode === m ? "linear-gradient(180deg, #35302a 0%, #2b2620 100%)" : "transparent",
-                color: mode === m ? "#FCF8EE" : "var(--ink-soft)",
+                color: mode === m ? "#FCF8EE" : m === "mistakes" && mistakeCount ? "#A5354A" : "var(--ink-soft)",
                 boxShadow: mode === m ? "0 6px 16px -8px rgba(60,50,20,.55)" : "none",
                 cursor: "pointer",
               }}
             >
-              {m === "flash" ? "Cards" : m === "quiz" ? "Quiz" : m === "articles" ? "Articles" : "Fill-in"}
+              {m === "flash" ? "Cards" : m === "quiz" ? "Quiz" : m === "articles" ? "Articles" : m === "cloze" ? "Fill-in" : mistakeCount ? `Review ${mistakeCount}` : "Review"}
             </button>
           ))}
         </div>
 
         <div style={{ marginTop: "6px", animation: "cardIn .35s ease both" }} key={mode}>
-          {mode === "flash" && <Flashcards pool={pool} allData={allData} direction={direction} noRepeat={noRepeat} />}
-          {mode === "quiz" && <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} sessions={sessions} onSaveSession={handleSaveSession} onClearHistory={handleClearHistory} direction={direction} noRepeat={noRepeat} />}
-          {mode === "articles" && <ArticleQuiz pool={pool} noRepeat={noRepeat} />}
-          {mode === "cloze" && <ClozeQuiz pool={pool} noRepeat={noRepeat} />}
+          {mode === "flash" && <Flashcards pool={pool} allData={allData} direction={direction} noRepeat={noRepeat} onResult={recordResult} />}
+          {mode === "quiz" && <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} onResult={recordResult} sessions={sessions} onSaveSession={handleSaveSession} onClearHistory={handleClearHistory} direction={direction} noRepeat={noRepeat} />}
+          {mode === "articles" && <ArticleQuiz pool={pool} noRepeat={noRepeat} onResult={recordResult} />}
+          {mode === "cloze" && <ClozeQuiz pool={pool} noRepeat={noRepeat} onResult={recordResult} />}
+          {mode === "mistakes" && <MistakesReview mistakes={mistakes} allData={allData} direction={direction} onResult={recordResult} onClearAll={clearAllMistakes} />}
         </div>
       </div>
     </div>

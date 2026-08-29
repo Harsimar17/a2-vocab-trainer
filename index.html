@@ -1202,6 +1202,7 @@ function ClozeQuiz({ pool, noRepeat }) {
 
       <div
         style={{
+          position: "relative",
           width: "min(440px, 92vw)",
           background: "linear-gradient(170deg, #FEFBF3 0%, #F7F1E1 100%)",
           border: "1px solid #e6dcc4",
@@ -1211,6 +1212,25 @@ function ClozeQuiz({ pool, noRepeat }) {
           textAlign: "center",
         }}
       >
+        {picked && (
+          <button
+            onClick={nextQ}
+            aria-label="next question"
+            style={{
+              ...navBtnStyle,
+              position: "absolute",
+              right: "14px",
+              top: "18px",
+              zIndex: 5,
+              padding: "8px 14px",
+              fontSize: "11px",
+              borderRadius: "999px",
+              boxShadow: "0 8px 20px -6px rgba(60,50,20,.7)",
+            }}
+          >
+            next ›
+          </button>
+        )}
         <div style={{ marginBottom: "16px" }}><CatChip cat={q.correct.cat} /></div>
         <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "21px", lineHeight: 1.7, color: "var(--ink)" }}>
           {q.hit.before}
@@ -1277,9 +1297,6 @@ function ClozeQuiz({ pool, noRepeat }) {
         })}
       </div>
 
-      {picked && (
-        <button onClick={nextQ} style={{ ...navBtnStyle, width: "min(440px, 92vw)" }}>next ›</button>
-      )}
     </div>
   );
 }
@@ -1530,12 +1547,12 @@ function App() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "4px",
-            padding: "4px",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: "3px",
+            padding: "3px",
             background: "#00000008",
             border: "1px solid var(--line)",
-            borderRadius: "18px",
+            borderRadius: "999px",
             alignSelf: "center",
             width: "min(440px, 92vw)",
           }}
@@ -1546,11 +1563,11 @@ function App() {
               onClick={() => setMode(m)}
               style={{
                 fontFamily: "var(--font-mono)",
-                fontSize: "11px",
+                fontSize: "10px",
                 fontWeight: 500,
-                letterSpacing: "0.1em",
+                letterSpacing: "0.04em",
                 textTransform: "uppercase",
-                padding: "11px 8px",
+                padding: "9px 4px",
                 border: "none",
                 borderRadius: "999px",
                 background: mode === m ? "linear-gradient(180deg, #35302a 0%, #2b2620 100%)" : "transparent",
@@ -1559,7 +1576,7 @@ function App() {
                 cursor: "pointer",
               }}
             >
-              {m === "flash" ? "Flashcards" : m === "quiz" ? "Quiz" : m === "articles" ? "Articles" : "Fill-in"}
+              {m === "flash" ? "Cards" : m === "quiz" ? "Quiz" : m === "articles" ? "Articles" : "Fill-in"}
             </button>
           ))}
         </div>

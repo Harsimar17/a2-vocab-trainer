@@ -1071,6 +1071,219 @@ function ArticleQuiz({ pool, noRepeat }) {
   );
 }
 
+// ---------- FILL-IN-THE-BLANK (cloze) ----------
+// Uses the hand-written example sentence on each noun card, blanks out the noun,
+// and offers 4 same-gender nouns to choose from. Only nouns carry example
+// sentences in the data, so this mode works off der / die / das.
+const NOUN_CATS = ["der", "die", "das"];
+function nounForms(card) {
+  let de = String(card.de || "").replace(/\s*\((?:Pl\.|WG)\)/g, "").trim();
+  return de
+    .split(" / ")
+    .map((s) => s.replace(/^(der|die|das)\s+/i, "").trim())
+    .filter(Boolean);
+}
+function clozeMatch(card) {
+  const sentence = String(card.example || "");
+  if (!sentence) return null;
+  for (const f of nounForms(card)) {
+    const esc = f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = sentence.match(new RegExp(esc, "i"));
+    if (m) {
+      return {
+        answer: m[0],
+        before: sentence.slice(0, m.index),
+        after: sentence.slice(m.index + m[0].length),
+      };
+    }
+  }
+  return null;
+}
+function makeClozeQuestion(pool, correctPool) {
+  const source = correctPool && correctPool.length > 0 ? correctPool : pool;
+  const correct = source[Math.floor(Math.random() * source.length)];
+  const hit = clozeMatch(correct);
+  const sameCat = pool.filter((d) => d.cat === correct.cat && d.id !== correct.id);
+  const distractPool = sameCat.length >= 3 ? sameCat : pool.filter((d) => d.id !== correct.id);
+  const distractors = shuffle(distractPool).slice(0, 3);
+  const options = shuffle([correct, ...distractors]).map((d) => ({ id: d.id, label: nounForms(d)[0] }));
+  return { correct, hit, options };
+}
+
+function ClozeQuiz({ pool, noRepeat }) {
+  const clozePool = useMemo(
+    () => pool.filter((d) => NOUN_CATS.includes(d.cat) && d.example && clozeMatch(d)),
+    [pool]
+  );
+
+  const [askedIds, setAskedIds] = useState(() => new Set());
+  const [q, setQ] = useState(() => (clozePool.length > 0 ? makeClozeQuestion(clozePool) : null));
+  const [picked, setPicked] = useState(null);
+  const [score, setScore] = useState({ right: 0, total: 0 });
+  const [done, setDone] = useState(false);
+
+  const resetRound = React.useCallback(() => {
+    if (clozePool.length === 0) return;
+    const nq = makeClozeQuestion(clozePool);
+    const fresh = new Set();
+    if (noRepeat) fresh.add(nq.correct.id);
+    setAskedIds(fresh);
+    setQ(nq);
+    setPicked(null);
+    setDone(false);
+  }, [clozePool, noRepeat]);
+
+  React.useEffect(() => {
+    resetRound();
+    setScore({ right: 0, total: 0 });
+  }, [clozePool.length, noRepeat]);
+
+  if (clozePool.length < 4) {
+    return (
+      <p style={{ textAlign: "center", color: "var(--ink-soft)", maxWidth: "min(440px, 92vw)", margin: "0 auto", lineHeight: 1.6 }}>
+        Fill-in-the-blank runs on example sentences — select <strong>der / die / das</strong> above (and enough nouns) to play.
+      </p>
+    );
+  }
+  if (!q) return null;
+
+  const choose = (optId) => {
+    if (picked) return;
+    setPicked(optId);
+    const correct = optId === q.correct.id;
+    setScore((s) => ({ right: s.right + (correct ? 1 : 0), total: s.total + 1 }));
+  };
+
+  const nextQ = () => {
+    if (noRepeat) {
+      const remaining = clozePool.filter((d) => !askedIds.has(d.id));
+      if (remaining.length === 0) {
+        setDone(true);
+        setPicked(null);
+        return;
+      }
+      const nq = makeClozeQuestion(clozePool, remaining);
+      setAskedIds((prev) => new Set(prev).add(nq.correct.id));
+      setQ(nq);
+      setPicked(null);
+    } else {
+      setQ(makeClozeQuestion(clozePool));
+      setPicked(null);
+    }
+  };
+
+  if (done) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "40px 0" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "var(--ink-faint)" }}>
+          SCORE {score.right} / {score.total}
+        </div>
+        <div style={{ fontFamily: "var(--font-serif)", fontSize: "22px", color: "var(--ink)", textAlign: "center" }}>
+          All {clozePool.length} / {clozePool.length} sentences done 🎉
+        </div>
+        <button onClick={resetRound} style={navBtnStyle}>⟲ start over</button>
+      </div>
+    );
+  }
+
+  const accent = CATEGORY_META[q.correct.cat].color;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px" }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "var(--ink-faint)" }}>
+        SCORE {score.right} / {score.total}
+      </div>
+
+      {noRepeat && (
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", letterSpacing: "0.08em", color: "var(--ink-faint)", marginTop: "-10px" }}>
+          {askedIds.size} / {clozePool.length} attempted
+        </div>
+      )}
+
+      <div
+        style={{
+          width: "min(440px, 92vw)",
+          background: "linear-gradient(170deg, #FEFBF3 0%, #F7F1E1 100%)",
+          border: "1px solid #e6dcc4",
+          borderRadius: "16px",
+          boxShadow: "var(--shadow-card)",
+          padding: "26px 22px",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ marginBottom: "16px" }}><CatChip cat={q.correct.cat} /></div>
+        <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "21px", lineHeight: 1.7, color: "var(--ink)" }}>
+          {q.hit.before}
+          <span
+            style={{
+              display: "inline-block",
+              minWidth: "84px",
+              margin: "0 4px",
+              padding: "0 8px 2px",
+              borderBottom: `2px solid ${picked ? accent : "var(--ink-faint)"}`,
+              color: picked ? accent : "transparent",
+              fontWeight: 700,
+            }}
+          >
+            {picked ? q.hit.answer : " "}
+          </span>
+          {q.hit.after}
+        </div>
+        {picked && (
+          <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "14px", color: "var(--ink-soft)", marginTop: "14px" }}>
+            {q.correct.de} · {q.correct.en}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "min(440px, 92vw)" }}>
+        {q.options.map((opt) => {
+          let bg = "var(--paper-raised)";
+          let border = "#e2d8c0";
+          let color = "var(--ink)";
+          let shadow = "var(--shadow-soft)";
+          if (picked) {
+            if (opt.id === q.correct.id) {
+              bg = "linear-gradient(180deg,#458860,#3F7A55)"; border = "#3F7A55"; color = "#FCF8EE";
+              shadow = "0 10px 22px -10px rgba(63,122,85,.7)";
+            } else if (opt.id === picked) {
+              bg = "linear-gradient(180deg,#b23c52,#A5354A)"; border = "#A5354A"; color = "#FCF8EE";
+              shadow = "0 10px 22px -10px rgba(165,53,74,.7)";
+            } else {
+              bg = "transparent"; border = "#e2d8c0"; color = "var(--ink-faint)"; shadow = "none";
+            }
+          }
+          return (
+            <button
+              key={opt.id}
+              onClick={() => choose(opt.id)}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontWeight: 600,
+                fontSize: opt.label.length > 22 ? "15px" : "18px",
+                textAlign: "center",
+                padding: "14px 16px",
+                borderRadius: "12px",
+                border: `1px solid ${border}`,
+                background: bg,
+                color,
+                boxShadow: shadow,
+                cursor: picked ? "default" : "pointer",
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {picked && (
+        <button onClick={nextQ} style={{ ...navBtnStyle, width: "min(440px, 92vw)" }}>next ›</button>
+      )}
+    </div>
+  );
+}
+
 // A single fixed record shared by every browser/device — since this trainer
 // is for one person only, there's no need for a separate identity per browser.
 const PROGRESS_DOC_ID = "harsimar-progress";
@@ -1316,17 +1529,18 @@ function App() {
 
         <div
           style={{
-            display: "flex",
-            justifyContent: "center",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
             gap: "4px",
             padding: "4px",
             background: "#00000008",
             border: "1px solid var(--line)",
-            borderRadius: "999px",
+            borderRadius: "18px",
             alignSelf: "center",
+            width: "min(440px, 92vw)",
           }}
         >
-          {["flash", "quiz", "articles"].map((m) => (
+          {["flash", "quiz", "articles", "cloze"].map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
@@ -1334,9 +1548,9 @@ function App() {
                 fontFamily: "var(--font-mono)",
                 fontSize: "11px",
                 fontWeight: 500,
-                letterSpacing: "0.12em",
+                letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                padding: "9px 20px",
+                padding: "11px 8px",
                 border: "none",
                 borderRadius: "999px",
                 background: mode === m ? "linear-gradient(180deg, #35302a 0%, #2b2620 100%)" : "transparent",
@@ -1345,7 +1559,7 @@ function App() {
                 cursor: "pointer",
               }}
             >
-              {m === "flash" ? "Flashcards" : m === "quiz" ? "Quiz" : "Articles"}
+              {m === "flash" ? "Flashcards" : m === "quiz" ? "Quiz" : m === "articles" ? "Articles" : "Fill-in"}
             </button>
           ))}
         </div>
@@ -1354,6 +1568,7 @@ function App() {
           {mode === "flash" && <Flashcards pool={pool} allData={allData} direction={direction} noRepeat={noRepeat} />}
           {mode === "quiz" && <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} sessions={sessions} onSaveSession={handleSaveSession} onClearHistory={handleClearHistory} direction={direction} noRepeat={noRepeat} />}
           {mode === "articles" && <ArticleQuiz pool={pool} noRepeat={noRepeat} />}
+          {mode === "cloze" && <ClozeQuiz pool={pool} noRepeat={noRepeat} />}
         </div>
       </div>
     </div>

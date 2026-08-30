@@ -191,6 +191,138 @@ function shuffle(arr) {
   return a;
 }
 
+// ---------- SPACED REPETITION ----------
+// The Review tab is a manual "words I bombed" bucket. This is the other half of
+// making vocab stick: an automatic scheduler so words you *do* get right still
+// come back — spaced out over days — right before you'd forget them. Each word
+// gets a Leitner box (1–5) and a due date. "good" promotes the box and pushes the
+// next review further out; "again" drops it back to box 1. Study/Write mode serve
+// whatever is due plus a small daily trickle of new words. Keyed by a STABLE
+// string (level|cat|German) — not the runtime numeric id, which shifts whenever
+// german_vocab.json is re-generated — and mirrored to localStorage + Firestore.
+const SRS_BOX_DAYS = [0, 1, 3, 8, 21];   // interval after reaching box 1..5
+const SRS_NEW_PER_DAY = 12;
+const SRS_DAILY_GOAL = 20;
+const SRS_TROUBLE_LAPSES = 3;
+const SRS_DAY_MS = 86400000;
+const SRS_AGAIN_MS = 8 * 60 * 1000;      // "again" → visible again within the session
+
+function srsKey(card) {
+  return card.lvl + "|" + card.cat + "|" + card.de;
+}
+function ymd(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  const p = (n) => (n < 10 ? "0" + n : "" + n);
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function ymdShift(str, days) {
+  const a = str.split("-").map(Number);
+  return ymd(new Date(a[0], a[1] - 1, a[2] + days).getTime());
+}
+function srsAdvance(prev, grade) {
+  const s = prev
+    ? { box: prev.box, due: prev.due, reps: prev.reps, lapses: prev.lapses, last: prev.last }
+    : { box: 1, due: 0, reps: 0, lapses: 0, last: 0 };
+  const now = Date.now();
+  s.reps += 1;
+  s.last = now;
+  if (grade === "again") {
+    if (s.box > 1) s.lapses += 1;
+    s.box = 1;
+    s.due = now + SRS_AGAIN_MS;
+  } else {
+    s.box = Math.min(5, s.box + (grade === "easy" ? 2 : 1));
+    s.due = now + SRS_BOX_DAYS[s.box - 1] * SRS_DAY_MS;
+  }
+  return s;
+}
+function srsMerge(a, b) {
+  const out = Object.assign({}, a || {});
+  Object.keys(b || {}).forEach((k) => {
+    if (!out[k] || (b[k].last || 0) > (out[k].last || 0)) out[k] = b[k];
+  });
+  return out;
+}
+function srsLoad(key, fallback) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    return v && typeof v === "object" ? v : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+function srsSave(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage off */ }
+}
+
+// Ordered study list: everything due (soonest first), then up to the daily cap of
+// brand-new words. focus "all" ignores scheduling; "trouble" = words missed a lot.
+function srsQueue(pool, srs, daily, focus) {
+  if (focus === "trouble") {
+    return shuffle(pool.filter((c) => {
+      const st = srs[srsKey(c)];
+      return st && (st.lapses || 0) >= SRS_TROUBLE_LAPSES;
+    }));
+  }
+  if (focus === "all") return shuffle(pool);
+  const now = Date.now();
+  const due = [];
+  const fresh = [];
+  pool.forEach((c) => {
+    const st = srs[srsKey(c)];
+    if (st) { if ((st.due || 0) <= now) due.push(c); }
+    else fresh.push(c);
+  });
+  due.sort((x, y) => (srs[srsKey(x)].due || 0) - (srs[srsKey(y)].due || 0));
+  const introduced = daily && daily.date === ymd() ? (daily.introduced || 0) : 0;
+  const room = Math.max(0, SRS_NEW_PER_DAY - introduced);
+  return due.concat(shuffle(fresh).slice(0, room));
+}
+
+// ---------- FORGIVING TYPED-ANSWER CHECK (production practice) ----------
+// Recognising a word in a list is far easier than producing it — and producing
+// it is the skill a real conversation needs. Write mode asks for the German
+// cold; this grades it leniently (case, trailing punctuation and ae/oe/ue/ss
+// spelling of umlauts are all ignored) and nudges on a missing/wrong article.
+function foldUmlaut(s) {
+  return s.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+}
+function normDe(s) {
+  return foldUmlaut(String(s || "").toLowerCase().trim())
+    .replace(/[.!?,;:]+$/g, "")
+    .replace(/\s+/g, " ");
+}
+function acceptedDe(card) {
+  const de = String(card.de || "").replace(/\s*\((?:Pl\.|WG)\)/g, "").trim();
+  return de
+    .split(" / ")
+    .map((x) => x.replace(/\((sich)\)/g, "$1").replace(/\s{2,}/g, " ").trim())
+    .filter(Boolean);
+}
+function checkDe(card, input) {
+  const given = normDe(input);
+  if (!given) return { verdict: "empty" };
+  const typedUmlaut = /[äöüß]/i.test(input || "");
+  const forms = acceptedDe(card);
+  for (let i = 0; i < forms.length; i++) {
+    if (given === normDe(forms[i])) {
+      // Accepted, but flag it if they wrote ae/oe/ue/ss for a word that has
+      // real umlauts — so we can still show them the proper spelling.
+      const needsUmlaut = /[äöüß]/.test(forms[i]);
+      return needsUmlaut && !typedUmlaut
+        ? { verdict: "correct", spelled: forms[i] }
+        : { verdict: "correct" };
+    }
+  }
+  const isNoun = card.cat === "der" || card.cat === "die" || card.cat === "das";
+  if (isNoun && forms.length) {
+    const bare = normDe(forms[0].replace(/^(der|die|das)\s+/i, ""));
+    if (given === bare) return { verdict: "close", hint: "Right word — add the article: " + card.cat + "." };
+    if (given.replace(/^(der|die|das)\s+/, "") === bare) return { verdict: "close", hint: "Wrong article — it's “" + card.cat + "”." };
+  }
+  return { verdict: "wrong" };
+}
+
 // ---------- PRONUNCIATION (Web Speech API) ----------
 // Speaks German text aloud using the browser's built-in speech synthesis.
 // Works offline on iOS/Safari (uses the system German voice when present).
@@ -837,6 +969,337 @@ const navBtnStyle = {
   cursor: "pointer",
   boxShadow: "0 1px 2px rgba(60,50,20,.12), 0 8px 18px -10px rgba(60,50,20,.5)",
 };
+
+// ---------- STUDY (spaced repetition) & WRITE (typed production) ----------
+const srsCol = { display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" };
+const srsNote = { textAlign: "center", color: "var(--ink-soft)", maxWidth: "min(440px, 92vw)", margin: "0 auto", lineHeight: 1.7 };
+
+function GradeBar({ onGrade }) {
+  const btns = [
+    ["again", "Again", "#A5354A", "forgot"],
+    ["good", "Good", "#3F7A55", "got it"],
+    ["easy", "Easy", "#3A5A8C", "too easy"],
+  ];
+  return (
+    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "center" }}>
+      {btns.map(([g, label, color, sub]) => (
+        <button
+          key={g}
+          onClick={() => onGrade(g)}
+          style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: "2px",
+            fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600,
+            letterSpacing: "0.06em", textTransform: "uppercase", padding: "10px 20px",
+            borderRadius: "10px", border: "1px solid " + color, background: color,
+            color: "#FCF8EE", cursor: "pointer", boxShadow: "0 8px 18px -10px " + color,
+          }}
+        >
+          {label}
+          <span style={{ fontSize: "8px", opacity: 0.85, letterSpacing: "0.08em" }}>{sub}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StreakHeader({ daily, dueCount, newCount, focus }) {
+  const today = daily && daily.date === ymd() ? daily : { reviewed: 0 };
+  const reviewed = today.reviewed || 0;
+  const pct = Math.min(100, Math.round((reviewed / SRS_DAILY_GOAL) * 100));
+  const streak = (daily && daily.streak) || 0;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.1em", color: "var(--ink-soft)", textTransform: "uppercase", textAlign: "center" }}>
+        {streak > 0 ? "🔥 " + streak + "-day streak" : "start a streak today"} · {reviewed}/{SRS_DAILY_GOAL} today
+        {dueCount != null && (
+          <span style={{ color: "var(--ink-faint)" }}>{"  ·  " + (focus === "all" ? "all-words mode" : focus === "trouble" ? "trouble-words mode" : dueCount + " due · " + newCount + " new")}</span>
+        )}
+      </div>
+      <div style={{ width: "min(300px, 78vw)", height: "4px", background: "var(--line)", borderRadius: "999px", overflow: "hidden" }}>
+        <div style={{ width: pct + "%", height: "100%", background: "var(--accent)", transition: "width .3s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+function StudyCard({ card, direction, onGrade, isNew, geminiKey }) {
+  const [flipped, setFlipped] = useState(false);
+  React.useEffect(() => { setFlipped(false); }, [card._qid, direction]);
+  const front = promptText(card, direction);
+  const back = answerText(card, direction);
+  const accent = CATEGORY_META[card.cat].color;
+  return (
+    <div style={srsCol}>
+      <div
+        onClick={() => setFlipped(true)}
+        style={{
+          width: "min(440px, 92vw)", minHeight: "220px",
+          cursor: flipped ? "default" : "pointer",
+          background: flipped
+            ? "linear-gradient(165deg, " + accent + " 0%, " + accent + "e0 100%)"
+            : "linear-gradient(170deg, #FEFBF3 0%, #F7F1E1 100%)",
+          border: "1px solid " + (flipped ? accent : "#e6dcc4"),
+          borderRadius: "16px", boxShadow: "var(--shadow-card)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          gap: "16px", padding: "30px 24px", textAlign: "center",
+        }}
+      >
+        <CatChip cat={card.cat} />
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+          {direction === "de-en" && <SpeakButton text={card.de} />}
+          <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: front.length > 24 ? "22px" : "30px", color: flipped ? "#FCF8EE" : "#2b2620" }}>
+            {front}
+          </div>
+        </div>
+        {flipped ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+            {direction === "en-de" && <SpeakButton text={card.de} />}
+            <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "23px", color: "#FCF8EE", textShadow: "0 1px 8px rgba(0,0,0,.18)" }}>
+              {back}
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.16em", textTransform: "uppercase", color: "#b0a888" }}>
+            {isNew ? "new word · tap to reveal" : "tap to reveal"}
+          </div>
+        )}
+      </div>
+      {flipped ? (
+        <React.Fragment>
+          <AiSentence card={card} apiKey={geminiKey} />
+          <GradeBar onGrade={onGrade} />
+        </React.Fragment>
+      ) : (
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", color: "var(--ink-faint)", textTransform: "uppercase" }}>
+          recall the answer first, then tap
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StudyMode({ pool, srs, daily, focus, direction, onGrade, geminiKey }) {
+  const [queue, setQueue] = useState([]);
+  const [i, setI] = useState(0);
+  const [graded, setGraded] = useState(0);
+  const [sentenceBreak, setSentenceBreak] = useState(null);
+  const [round, setRound] = useState(0);
+  const seq = React.useRef(0);
+
+  React.useEffect(() => {
+    const q = srsQueue(pool, srs, daily, focus).map((c) => Object.assign({}, c, { _qid: ++seq.current }));
+    setQueue(q);
+    setI(0);
+    setGraded(0);
+    setSentenceBreak(null);
+    // srs/daily read once per round on purpose so the queue doesn't reshuffle mid-session
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pool.length, focus, round, direction]);
+
+  if (pool.length === 0) {
+    return <p style={srsNote}>No categories selected — turn some on in settings ▸.</p>;
+  }
+  if (queue.length === 0) {
+    if (focus === "trouble") {
+      return <p style={srsNote}>No trouble words yet — nothing missed {SRS_TROUBLE_LAPSES}+ times. Keep going in <strong>Study</strong> or <strong>Write</strong>. 🎉</p>;
+    }
+    return (
+      <div style={{ ...srsCol, padding: "36px 0" }}>
+        <div style={{ fontFamily: "var(--font-serif)", fontSize: "22px", textAlign: "center" }}>You're caught up for today 🎉</div>
+        <p style={srsNote}>Every word that's due has been reviewed, and today's {SRS_NEW_PER_DAY} new words are done. Come back tomorrow — or set <strong>focus → everything</strong> in settings ▸ to keep drilling now.</p>
+      </div>
+    );
+  }
+
+  if (i >= queue.length) {
+    return (
+      <div style={{ ...srsCol, padding: "36px 0" }}>
+        <div style={{ fontFamily: "var(--font-serif)", fontSize: "22px", textAlign: "center" }}>{graded} reviewed this round 🎉</div>
+        <button onClick={() => setRound((r) => r + 1)} style={navBtnStyle}>⟲ keep going</button>
+      </div>
+    );
+  }
+
+  const card = queue[i];
+  const isNew = !srs[srsKey(card)];
+
+  if (sentenceBreak) {
+    return (
+      <div style={{ ...srsCol, padding: "10px 0" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.18em", color: "var(--ink-faint)" }}>SAY IT OUT LOUD</div>
+        <div style={{ fontFamily: "var(--font-serif)", fontSize: "20px", textAlign: "center", maxWidth: "min(440px, 92vw)", lineHeight: 1.5 }}>
+          Build your own sentence with <strong>{sentenceBreak.de}</strong> — “{sentenceBreak.en}”. Say it aloud, then check yourself against one below.
+        </div>
+        <AiSentence card={sentenceBreak} apiKey={geminiKey} />
+        <button onClick={() => { setSentenceBreak(null); setI((x) => x + 1); }} style={navBtnStyle}>continue ›</button>
+      </div>
+    );
+  }
+
+  const grade = (g) => {
+    onGrade(card, g);
+    const n = graded + 1;
+    setGraded(n);
+    if (g === "again") {
+      setQueue((qq) => qq.concat([Object.assign({}, card, { _qid: ++seq.current })]));
+      setI((x) => x + 1);
+    } else if (n % 5 === 0) {
+      setSentenceBreak(card);
+    } else {
+      setI((x) => x + 1);
+    }
+  };
+
+  return (
+    <div style={srsCol}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "#8a8372" }}>
+        {i + 1} / {queue.length}{focus === "all" ? " · all" : focus === "trouble" ? " · trouble" : ""}
+      </div>
+      <StudyCard card={card} direction={direction} onGrade={grade} isNew={isNew} geminiKey={geminiKey} />
+    </div>
+  );
+}
+
+function WriteMode({ pool, srs, daily, focus, onGrade, geminiKey }) {
+  const [queue, setQueue] = useState([]);
+  const [i, setI] = useState(0);
+  const [val, setVal] = useState("");
+  const [res, setRes] = useState(null);
+  const [typed, setTyped] = useState(0);
+  const [round, setRound] = useState(0);
+  const ref = React.useRef(null);
+  const seq = React.useRef(0);
+
+  React.useEffect(() => {
+    const q = srsQueue(pool, srs, daily, focus).map((c) => Object.assign({}, c, { _qid: ++seq.current }));
+    setQueue(q); setI(0); setVal(""); setRes(null); setTyped(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pool.length, focus, round]);
+
+  React.useEffect(() => {
+    if (ref.current && !res) ref.current.focus();
+  }, [i, res, queue.length]);
+
+  if (pool.length === 0) {
+    return <p style={srsNote}>No categories selected — turn some on in settings ▸.</p>;
+  }
+  if (queue.length === 0) {
+    return <p style={srsNote}>Nothing due to type right now. Set <strong>focus → everything</strong> in settings ▸ to practise producing any word.</p>;
+  }
+  if (i >= queue.length) {
+    return (
+      <div style={{ ...srsCol, padding: "36px 0" }}>
+        <div style={{ fontFamily: "var(--font-serif)", fontSize: "22px", textAlign: "center" }}>{typed} typed this round 🎉</div>
+        <button onClick={() => setRound((r) => r + 1)} style={navBtnStyle}>⟲ keep going</button>
+      </div>
+    );
+  }
+
+  const card = queue[i];
+  const isNoun = card.cat === "der" || card.cat === "die" || card.cat === "das";
+  const forms = acceptedDe(card);
+  const ok = res && res.verdict === "correct";
+  const close = res && res.verdict === "close";
+  const tone = ok ? "#3F7A55" : close ? "#8A6A2B" : "#A5354A";
+
+  const submit = () => {
+    if (res) return;
+    const r = checkDe(card, val);
+    if (r.verdict === "empty") return;
+    setRes(r);
+    onGrade(card, r.verdict === "correct" ? "good" : "again");
+    setTyped((d) => d + 1);
+  };
+  const next = () => { setRes(null); setVal(""); setI((x) => x + 1); };
+
+  return (
+    <div style={srsCol}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "#8a8372" }}>
+        {i + 1} / {queue.length} · TYPE IT IN GERMAN
+      </div>
+
+      <div style={{ textAlign: "center" }}>
+        <div style={{ marginBottom: "10px" }}><CatChip cat={card.cat} /></div>
+        <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: (card.en || "").length > 26 ? "20px" : "28px", color: "var(--ink)" }}>{card.en}</div>
+        {isNoun && !res && (
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-faint)", marginTop: "6px" }}>
+            include the article
+          </div>
+        )}
+      </div>
+
+      <input
+        ref={ref}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") { if (res) next(); else submit(); } }}
+        readOnly={!!res}
+        placeholder="dein Deutsch…"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        style={{
+          width: "min(440px, 92vw)", padding: "14px 16px", textAlign: "center",
+          fontFamily: "var(--font-serif)", fontSize: "20px",
+          border: "1px solid " + (res ? tone : "var(--line)"), borderRadius: "12px",
+          background: "var(--paper-raised)", color: "var(--ink)", outline: "none",
+        }}
+      />
+
+      {!res && (
+        <React.Fragment>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {["ä", "ö", "ü", "ß"].map((ch) => (
+              <button
+                key={ch}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); setVal((v) => v + ch); if (ref.current) ref.current.focus(); }}
+                style={{
+                  fontFamily: "var(--font-serif)", fontSize: "17px", fontWeight: 600,
+                  width: "40px", height: "40px", borderRadius: "9px",
+                  border: "1px solid var(--line)", background: "var(--paper-raised)",
+                  color: "var(--ink)", cursor: "pointer",
+                }}
+              >
+                {ch}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)", marginTop: "-6px" }}>
+            no umlaut key? tap above — or just type ae / oe / ue / ss
+          </div>
+          <button onClick={submit} style={navBtnStyle}>check ›</button>
+        </React.Fragment>
+      )}
+
+      {res && (
+        <div style={{ ...srsCol, gap: "10px" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.08em", color: tone }}>
+            {ok ? "✓ RICHTIG" : close ? "≈ FAST" : "✗ NOCH NICHT"}
+          </div>
+          {!ok && (
+            <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "22px", color: "var(--ink)", textAlign: "center" }}>
+              {forms.join("  /  ")}
+            </div>
+          )}
+          {ok && res.spelled && (
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: "15px", color: "var(--ink-soft)", textAlign: "center" }}>
+              accepted — the umlaut spelling is <strong style={{ color: "var(--ink)" }}>{res.spelled}</strong>
+            </div>
+          )}
+          {res.hint && (
+            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "14px", color: "var(--ink-soft)", textAlign: "center" }}>{res.hint}</div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <SpeakButton text={card.de} />
+            <button onClick={next} style={navBtnStyle}>next ›</button>
+          </div>
+          <AiSentence card={card} apiKey={geminiKey} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function makeQuestion(pool, correctPool) {
   const source = correctPool && correctPool.length > 0 ? correctPool : pool;
@@ -1920,6 +2383,8 @@ function SeparableVerbs({ pool, onResult, geminiKey }) {
 // and collapsible: the ‹ toggle retracts the whole strip to the left so only the
 // current tab shows while you're focused on learning.
 const TABS = [
+  { id: "study", label: "Study" },
+  { id: "write", label: "Write" },
   { id: "flash", label: "Cards" },
   { id: "quiz", label: "Quiz" },
   { id: "articles", label: "Articles" },
@@ -2018,7 +2483,7 @@ function TabBar({ mode, setMode, mistakeCount }) {
 // is for one person only, there's no need for a separate identity per browser.
 const PROGRESS_DOC_ID = "harsimar-progress";
 function App() {
-  const [mode, setMode] = useState("flash");
+  const [mode, setMode] = useState("study");
   const [activeCats, setActiveCats] = useState(CATS);
   const [levels, setLevels] = useState(["A2"]);
   const [direction, setDirection] = useState("de-en");
@@ -2062,6 +2527,24 @@ function App() {
       /* storage disabled — key just won't persist between reloads */
     }
   }, [geminiKey]);
+
+  // Spaced-repetition schedule: { [stableKey]: { box, due, reps, lapses, last } }.
+  // Drives the Study and Write tabs; every mode's result feeds it via bumpSrs.
+  const [srs, setSrs] = useState(() => srsLoad("a2vocab.srs.v1", {}));
+  React.useEffect(() => { srsSave("a2vocab.srs.v1", srs); }, [srs]);
+
+  // Daily counters + streak shown in the header. Rolls over at local midnight.
+  const [daily, setDaily] = useState(() =>
+    srsLoad("a2vocab.daily.v1", { date: ymd(), reviewed: 0, introduced: 0, streak: 0, lastActive: "" })
+  );
+  React.useEffect(() => { srsSave("a2vocab.daily.v1", daily); }, [daily]);
+
+  // Study/Write focus: "due" (scheduler), "all" (ignore schedule), "trouble".
+  const [focus, setFocus] = useState("due");
+  const readyRef = React.useRef(false);
+  const srsRef = React.useRef(srs);
+  React.useEffect(() => { readyRef.current = ready; }, [ready]);
+  React.useEffect(() => { srsRef.current = srs; }, [srs]);
 
   // Vocabulary is fetched at startup from VOCAB_DATA_URL rather than bundled here.
   const [allData, setAllData] = useState(null); // null while loading
@@ -2113,11 +2596,64 @@ function App() {
   const pool = useMemo(() => levelData.filter((d) => activeCats.includes(d.cat)), [levelData, activeCats]);
   const mistakeCount = Object.keys(mistakes).length;
 
+  const idMap = useMemo(() => {
+    const m = {};
+    (allData || []).forEach((d) => { m[d.id] = d; });
+    return m;
+  }, [allData]);
+  const dueCount = useMemo(
+    () => pool.reduce((n, c) => { const s = srs[srsKey(c)]; return n + (s && (s.due || 0) <= Date.now() ? 1 : 0); }, 0),
+    [pool, srs]
+  );
+  const newCount = useMemo(
+    () => pool.reduce((n, c) => n + (srs[srsKey(c)] ? 0 : 1), 0),
+    [pool, srs]
+  );
+
+  // Push one graded answer into the spaced-repetition schedule + today's counters.
+  // grade is "again" | "good" | "easy". Called directly by Study/Write and,
+  // via recordResult, by every other mode (correct → "good", wrong → "again").
+  const persistSrs = useCallback((key, state) => {
+    const fb = getFirebase();
+    if (fb && readyRef.current) {
+      fb.db.collection("scores").doc(PROGRESS_DOC_ID)
+        .set({ srs: { [key]: state } }, { merge: true })
+        .catch((err) => console.error("save srs failed:", err.code || err.message || err));
+    }
+  }, []);
+
+  const bumpSrs = useCallback((card, grade) => {
+    if (!card) return;
+    const key = srsKey(card);
+    const isNew = !srsRef.current[key];
+    const state = srsAdvance(srsRef.current[key], grade);
+    setSrs((prev) => Object.assign({}, prev, { [key]: state }));
+    persistSrs(key, state);
+    setDaily((d) => {
+      const t = ymd();
+      const nd = d.date === t ? Object.assign({}, d) : Object.assign({}, d, { date: t, reviewed: 0, introduced: 0 });
+      if (nd.lastActive !== t) {
+        nd.streak = nd.lastActive === ymdShift(t, -1) ? (nd.streak || 0) + 1 : 1;
+        nd.lastActive = t;
+      }
+      nd.reviewed = (nd.reviewed || 0) + 1;
+      if (isNew) nd.introduced = (nd.introduced || 0) + 1;
+      const fb = getFirebase();
+      if (fb && readyRef.current) {
+        fb.db.collection("scores").doc(PROGRESS_DOC_ID).set({ daily: nd }, { merge: true }).catch(() => {});
+      }
+      return nd;
+    });
+  }, [persistSrs]);
+
   // Every mode feeds the review list through here. A miss adds the word (or bumps
   // its miss count); a hit only records that it went right. Nothing is ever
   // removed automatically — the learner decides when a word comes off the list
-  // (per word in the Review tab, or "clear whole list").
+  // (per word in the Review tab, or "clear whole list"). It also feeds the
+  // spaced-repetition schedule so words come back on their own timetable.
   const recordResult = useCallback((cardId, correct) => {
+    const card = idMap[cardId];
+    if (card) bumpSrs(card, correct ? "good" : "again");
     setMistakes((prev) => {
       const cur = prev[cardId];
       if (correct) {
@@ -2133,7 +2669,7 @@ function App() {
         },
       };
     });
-  }, []);
+  }, [idMap, bumpSrs]);
 
   const removeMistake = useCallback((cardId) => {
     setMistakes((prev) => {
@@ -2171,8 +2707,26 @@ function App() {
           if (snap.exists) {
             const d = snap.data();
             setAllTime({ right: d.right || 0, total: d.total || 0 });
+            if (d.srs) {
+              setSrs((local) => {
+                const merged = srsMerge(local, d.srs);
+                srsSave("a2vocab.srs.v1", merged);
+                fb.db.collection("scores").doc(PROGRESS_DOC_ID).set({ srs: merged }, { merge: true }).catch(() => {});
+                return merged;
+              });
+            }
+            if (d.daily && d.daily.date) {
+              setDaily((local) => {
+                const remote = d.daily;
+                const pick = (remote.lastActive || "") > (local.lastActive || "") ? remote
+                  : (remote.lastActive || "") < (local.lastActive || "") ? local
+                  : ((remote.reviewed || 0) >= (local.reviewed || 0) ? remote : local);
+                srsSave("a2vocab.daily.v1", pick);
+                return pick;
+              });
+            }
           }
-        }).catch((err) => console.error("load allTime failed:", err.code || err.message || err));
+        }).catch((err) => console.error("load progress failed:", err.code || err.message || err));
         loadSessions();
       }
     });
@@ -2313,6 +2867,7 @@ function App() {
           >
             {settingsOpen ? "▾" : "▸"} {LEVELS.filter((lv) => levels.includes(lv)).join("+")} · {activeCats.length === CATS.length ? "all categories" : `${activeCats.length}/${CATS.length} categories`} · {direction === "de-en" ? "DE→EN" : "EN→DE"}
             {noRepeat ? " · no repeats" : ""}
+            {focus !== "due" ? " · focus: " + focus : ""}
             {geminiKey ? " · ✨ AI" : ""}
           </button>
         </div>
@@ -2325,13 +2880,45 @@ function App() {
               <DirectionToggle direction={direction} onChange={setDirection} />
               <NoRepeatToggle noRepeat={noRepeat} onChange={setNoRepeat} />
             </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-soft)" }}>
+                Study / Write focus
+              </div>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+                {[["due", "due today"], ["all", "everything"], ["trouble", "trouble words"]].map(([f, lbl]) => (
+                  <button
+                    key={f}
+                    onClick={() => setFocus(f)}
+                    style={{
+                      fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 500,
+                      letterSpacing: "0.08em", textTransform: "uppercase", padding: "7px 13px",
+                      borderRadius: "999px",
+                      border: "1px solid " + (focus === f ? "var(--accent)" : "var(--ink-faint)"),
+                      background: focus === f ? "var(--accent)" : "transparent",
+                      color: focus === f ? "#FCF8EE" : "var(--ink-soft)", cursor: "pointer",
+                    }}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
             <GeminiKeyField value={geminiKey} onChange={setGeminiKey} />
           </div>
         )}
 
+        <StreakHeader
+          daily={daily}
+          focus={focus}
+          dueCount={mode === "study" || mode === "write" ? dueCount : null}
+          newCount={newCount}
+        />
+
         <TabBar mode={mode} setMode={setMode} mistakeCount={mistakeCount} />
 
         <div style={{ marginTop: "6px", animation: "cardIn .35s ease both" }} key={mode}>
+          {mode === "study" && <StudyMode pool={pool} srs={srs} daily={daily} focus={focus} direction={direction} onGrade={bumpSrs} geminiKey={geminiKey} />}
+          {mode === "write" && <WriteMode pool={pool} srs={srs} daily={daily} focus={focus} onGrade={bumpSrs} geminiKey={geminiKey} />}
           {mode === "flash" && <Flashcards pool={pool} allData={allData} direction={direction} noRepeat={noRepeat} onResult={recordResult} geminiKey={geminiKey} />}
           {mode === "quiz" && <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} onResult={recordResult} sessions={sessions} onSaveSession={handleSaveSession} onClearHistory={handleClearHistory} direction={direction} noRepeat={noRepeat} geminiKey={geminiKey} />}
           {mode === "articles" && <ArticleQuiz pool={pool} noRepeat={noRepeat} onResult={recordResult} geminiKey={geminiKey} />}

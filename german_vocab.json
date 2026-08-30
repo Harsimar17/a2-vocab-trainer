@@ -4213,6 +4213,170 @@
           "en": "to register, to sign up"
         }
       ],
+      "separable_verbs": [
+        {
+          "de": "aufstehen",
+          "en": "to get up",
+          "prefix": "auf",
+          "example": "Ich stehe um sieben Uhr auf."
+        },
+        {
+          "de": "anrufen",
+          "en": "to call (on the phone)",
+          "prefix": "an",
+          "example": "Ich rufe meine Mutter an."
+        },
+        {
+          "de": "einkaufen",
+          "en": "to go shopping",
+          "prefix": "ein",
+          "example": "Wir kaufen am Samstag ein."
+        },
+        {
+          "de": "fernsehen",
+          "en": "to watch TV",
+          "prefix": "fern",
+          "example": "Am Abend sehe ich fern."
+        },
+        {
+          "de": "mitkommen",
+          "en": "to come along",
+          "prefix": "mit",
+          "example": "Kommst du ins Kino mit?"
+        },
+        {
+          "de": "aufmachen",
+          "en": "to open",
+          "prefix": "auf",
+          "example": "Mach bitte das Fenster auf."
+        },
+        {
+          "de": "zumachen",
+          "en": "to close",
+          "prefix": "zu",
+          "example": "Ich mache die Tür zu."
+        },
+        {
+          "de": "anfangen",
+          "en": "to begin",
+          "prefix": "an",
+          "example": "Der Unterricht fängt um neun Uhr an."
+        },
+        {
+          "de": "aufhören",
+          "en": "to stop",
+          "prefix": "auf",
+          "example": "Wir hören um fünf Uhr auf."
+        },
+        {
+          "de": "ankommen",
+          "en": "to arrive",
+          "prefix": "an",
+          "example": "Der Zug kommt um zehn Uhr an."
+        },
+        {
+          "de": "abfahren",
+          "en": "to depart",
+          "prefix": "ab",
+          "example": "Der Bus fährt gleich ab."
+        },
+        {
+          "de": "einladen",
+          "en": "to invite",
+          "prefix": "ein",
+          "example": "Ich lade dich zum Essen ein."
+        },
+        {
+          "de": "aussehen",
+          "en": "to look, to appear",
+          "prefix": "aus",
+          "example": "Du siehst heute müde aus."
+        },
+        {
+          "de": "anziehen",
+          "en": "to put on (clothes)",
+          "prefix": "an",
+          "example": "Ich ziehe die Jacke an."
+        },
+        {
+          "de": "ausziehen",
+          "en": "to take off (clothes)",
+          "prefix": "aus",
+          "example": "Zieh bitte die Schuhe aus."
+        },
+        {
+          "de": "aufräumen",
+          "en": "to tidy up",
+          "prefix": "auf",
+          "example": "Ich räume mein Zimmer auf."
+        },
+        {
+          "de": "abholen",
+          "en": "to pick up",
+          "prefix": "ab",
+          "example": "Ich hole dich vom Bahnhof ab."
+        },
+        {
+          "de": "mitbringen",
+          "en": "to bring along",
+          "prefix": "mit",
+          "example": "Bring bitte Brot mit."
+        },
+        {
+          "de": "mitnehmen",
+          "en": "to take along",
+          "prefix": "mit",
+          "example": "Ich nehme einen Regenschirm mit."
+        },
+        {
+          "de": "weggehen",
+          "en": "to go away",
+          "prefix": "weg",
+          "example": "Er geht früh weg."
+        },
+        {
+          "de": "zurückkommen",
+          "en": "to come back",
+          "prefix": "zurück",
+          "example": "Sie kommt morgen zurück."
+        },
+        {
+          "de": "einschlafen",
+          "en": "to fall asleep",
+          "prefix": "ein",
+          "example": "Das Kind schläft schnell ein."
+        },
+        {
+          "de": "aufwachen",
+          "en": "to wake up",
+          "prefix": "auf",
+          "example": "Ich wache früh auf."
+        },
+        {
+          "de": "einsteigen",
+          "en": "to get on / in",
+          "prefix": "ein",
+          "example": "Wir steigen in den Bus ein."
+        },
+        {
+          "de": "aussteigen",
+          "en": "to get off",
+          "prefix": "aus",
+          "example": "Ich steige an der Haltestelle aus."
+        },
+        {
+          "de": "anmachen",
+          "en": "to turn on",
+          "prefix": "an",
+          "example": "Ich mache das Licht an."
+        },
+        {
+          "de": "ausmachen",
+          "en": "to turn off",
+          "prefix": "aus",
+          "example": "Mach bitte den Fernseher aus."
+        }
+      ],
       "function_words": [
         {
           "de": "ich / du / er / sie / es",
@@ -8597,6 +8761,164 @@
           "en": "to offer"
         }
       ],
+      "separable_verbs": [
+        {
+          "de": "vorbereiten",
+          "en": "to prepare",
+          "prefix": "vor",
+          "example": "Ich bereite das Essen vor."
+        },
+        {
+          "de": "anbieten",
+          "en": "to offer",
+          "prefix": "an",
+          "example": "Die Firma bietet mir eine Stelle an."
+        },
+        {
+          "de": "aufgeben",
+          "en": "to give up",
+          "prefix": "auf",
+          "example": "Gib nicht so schnell auf!"
+        },
+        {
+          "de": "ausgeben",
+          "en": "to spend (money)",
+          "prefix": "aus",
+          "example": "Ich gebe zu viel Geld aus."
+        },
+        {
+          "de": "nachdenken",
+          "en": "to think it over",
+          "prefix": "nach",
+          "example": "Ich denke über das Angebot nach."
+        },
+        {
+          "de": "vorhaben",
+          "en": "to plan (to do)",
+          "prefix": "vor",
+          "example": "Was hast du am Wochenende vor?"
+        },
+        {
+          "de": "zuhören",
+          "en": "to listen",
+          "prefix": "zu",
+          "example": "Hör mir bitte zu!"
+        },
+        {
+          "de": "absagen",
+          "en": "to cancel",
+          "prefix": "ab",
+          "example": "Ich sage den Termin ab."
+        },
+        {
+          "de": "zusagen",
+          "en": "to accept (an invitation)",
+          "prefix": "zu",
+          "example": "Sie sagt für die Party zu."
+        },
+        {
+          "de": "umsteigen",
+          "en": "to change (trains)",
+          "prefix": "um",
+          "example": "In Köln steige ich um."
+        },
+        {
+          "de": "mitmachen",
+          "en": "to join in",
+          "prefix": "mit",
+          "example": "Machst du beim Spiel mit?"
+        },
+        {
+          "de": "aufpassen",
+          "en": "to pay attention",
+          "prefix": "auf",
+          "example": "Pass im Unterricht auf!"
+        },
+        {
+          "de": "vorschlagen",
+          "en": "to suggest",
+          "prefix": "vor",
+          "example": "Ich schlage einen Film vor."
+        },
+        {
+          "de": "ausfüllen",
+          "en": "to fill out",
+          "prefix": "aus",
+          "example": "Füllen Sie bitte das Formular aus."
+        },
+        {
+          "de": "abgeben",
+          "en": "to hand in",
+          "prefix": "ab",
+          "example": "Ich gebe die Hausaufgabe ab."
+        },
+        {
+          "de": "anprobieren",
+          "en": "to try on",
+          "prefix": "an",
+          "example": "Ich probiere die Hose an."
+        },
+        {
+          "de": "zunehmen",
+          "en": "to gain weight",
+          "prefix": "zu",
+          "example": "Im Winter nehme ich oft zu."
+        },
+        {
+          "de": "abnehmen",
+          "en": "to lose weight",
+          "prefix": "ab",
+          "example": "Er nimmt langsam ab."
+        },
+        {
+          "de": "teilnehmen",
+          "en": "to take part",
+          "prefix": "teil",
+          "example": "Sie nimmt am Kurs teil."
+        },
+        {
+          "de": "stattfinden",
+          "en": "to take place",
+          "prefix": "statt",
+          "example": "Das Konzert findet morgen statt."
+        },
+        {
+          "de": "vorstellen",
+          "en": "to introduce",
+          "prefix": "vor",
+          "example": "Ich stelle dir meinen Freund vor."
+        },
+        {
+          "de": "einpacken",
+          "en": "to pack",
+          "prefix": "ein",
+          "example": "Ich packe die Koffer ein."
+        },
+        {
+          "de": "auspacken",
+          "en": "to unpack",
+          "prefix": "aus",
+          "example": "Wir packen die Koffer aus."
+        },
+        {
+          "de": "zurückgeben",
+          "en": "to give back",
+          "prefix": "zurück",
+          "example": "Ich gebe dir das Buch zurück."
+        },
+        {
+          "de": "weglaufen",
+          "en": "to run away",
+          "prefix": "weg",
+          "example": "Der Hund läuft weg."
+        },
+        {
+          "de": "herkommen",
+          "en": "to come here",
+          "prefix": "her",
+          "example": "Komm bitte her!"
+        }
+      ],
       "function_words": [
         {
           "de": "weil / da",
@@ -12665,6 +12987,152 @@
           "en": "to suffice"
         }
       ],
+      "separable_verbs": [
+        {
+          "de": "ablehnen",
+          "en": "to reject",
+          "prefix": "ab",
+          "example": "Sie lehnt den Vorschlag ab."
+        },
+        {
+          "de": "zugeben",
+          "en": "to admit",
+          "prefix": "zu",
+          "example": "Er gibt seinen Fehler zu."
+        },
+        {
+          "de": "auffallen",
+          "en": "to stand out, to be noticeable",
+          "prefix": "auf",
+          "example": "Mir fällt auf, dass er oft fehlt."
+        },
+        {
+          "de": "sich aufregen",
+          "en": "to get upset",
+          "prefix": "auf",
+          "example": "Reg dich nicht so auf!"
+        },
+        {
+          "de": "ausdrücken",
+          "en": "to express",
+          "prefix": "aus",
+          "example": "Ich drücke mich klar aus."
+        },
+        {
+          "de": "sich durchsetzen",
+          "en": "to assert oneself",
+          "prefix": "durch",
+          "example": "Sie setzt sich immer durch."
+        },
+        {
+          "de": "einführen",
+          "en": "to introduce (something)",
+          "prefix": "ein",
+          "example": "Der Chef führt neue Regeln ein."
+        },
+        {
+          "de": "festlegen",
+          "en": "to set, to fix",
+          "prefix": "fest",
+          "example": "Wir legen den Termin fest."
+        },
+        {
+          "de": "feststellen",
+          "en": "to ascertain, to determine",
+          "prefix": "fest",
+          "example": "Der Arzt stellt eine Grippe fest."
+        },
+        {
+          "de": "herausfinden",
+          "en": "to find out",
+          "prefix": "heraus",
+          "example": "Ich finde die Wahrheit heraus."
+        },
+        {
+          "de": "nachholen",
+          "en": "to catch up on",
+          "prefix": "nach",
+          "example": "Ich hole den Stoff nach."
+        },
+        {
+          "de": "vorkommen",
+          "en": "to occur, to happen",
+          "prefix": "vor",
+          "example": "So etwas kommt selten vor."
+        },
+        {
+          "de": "vorziehen",
+          "en": "to prefer",
+          "prefix": "vor",
+          "example": "Ich ziehe Tee dem Kaffee vor."
+        },
+        {
+          "de": "anerkennen",
+          "en": "to acknowledge",
+          "prefix": "an",
+          "example": "Man erkennt seine Leistung an."
+        },
+        {
+          "de": "nachgehen",
+          "en": "to pursue",
+          "prefix": "nach",
+          "example": "Er geht seinem Hobby nach."
+        },
+        {
+          "de": "vorgehen",
+          "en": "to proceed",
+          "prefix": "vor",
+          "example": "Wie gehen wir jetzt vor?"
+        },
+        {
+          "de": "zusammenfassen",
+          "en": "to summarize",
+          "prefix": "zusammen",
+          "example": "Ich fasse den Text zusammen."
+        },
+        {
+          "de": "durchfallen",
+          "en": "to fail (an exam)",
+          "prefix": "durch",
+          "example": "Er fällt in der Prüfung durch."
+        },
+        {
+          "de": "nachschlagen",
+          "en": "to look up",
+          "prefix": "nach",
+          "example": "Ich schlage das Wort im Wörterbuch nach."
+        },
+        {
+          "de": "vorbeikommen",
+          "en": "to drop by",
+          "prefix": "vorbei",
+          "example": "Komm doch morgen vorbei!"
+        },
+        {
+          "de": "aufhalten",
+          "en": "to hold up, to delay",
+          "prefix": "auf",
+          "example": "Der Stau hält uns auf."
+        },
+        {
+          "de": "einsetzen",
+          "en": "to deploy, to use",
+          "prefix": "ein",
+          "example": "Die Firma setzt neue Technik ein."
+        },
+        {
+          "de": "umgehen",
+          "en": "to deal with",
+          "prefix": "um",
+          "example": "Sie geht gut mit Stress um."
+        },
+        {
+          "de": "hinweisen",
+          "en": "to point out",
+          "prefix": "hin",
+          "example": "Er weist auf das Problem hin."
+        }
+      ],
       "function_words": [
         {
           "de": "einerseits ... andererseits",
@@ -13235,7 +13703,8 @@
       "adj": 117,
       "verb": 138,
       "func": 125,
-      "phrase": 48
+      "phrase": 48,
+      "sep": 27
     },
     "A2": {
       "der": 110,
@@ -13244,7 +13713,8 @@
       "adj": 111,
       "verb": 153,
       "func": 90,
-      "phrase": 49
+      "phrase": 49,
+      "sep": 26
     },
     "B1": {
       "der": 77,
@@ -13253,7 +13723,8 @@
       "adj": 110,
       "verb": 151,
       "func": 89,
-      "phrase": 50
+      "phrase": 50,
+      "sep": 24
     }
   }
 }

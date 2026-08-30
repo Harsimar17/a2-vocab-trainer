@@ -74,6 +74,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Horizontally scrollable tab strip — momentum scroll on iOS, no visible bar */
+.tabstrip {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+.tabstrip::-webkit-scrollbar { display: none; width: 0; height: 0; }
 </style>
 </head>
 <body>
@@ -118,6 +126,7 @@ const CATEGORY_META = {
   das: { label: "das", color: "#3F7A55" },
   adj: { label: "adj.", color: "#8A6A2B" },
   verb: { label: "verb", color: "#6B4A8A" },
+  sep: { label: "trenn.", color: "#2E7D74" },
   func: { label: "func.", color: "#4A7A8C" },
   phrase: { label: "phrase", color: "#B0722E" },
 };
@@ -128,12 +137,16 @@ const CATEGORY_META = {
 // (see App below) and flattened here into the same {id, de, en, cat, lvl, example}
 // shape the rest of the app already expects, so everything below this point is
 // unchanged from when the data was hardcoded.
-const VOCAB_DATA_URL = "https://harsimar17.github.io/Deutsch-Vocab-Helper/german_vocab.json";
+// Prefer the copy shipped next to this file (works offline / on GitHub Pages);
+// fall back to the canonical hosted copy if it isn't reachable.
+const VOCAB_DATA_URL = "./german_vocab.json";
+const VOCAB_DATA_URL_FALLBACK = "https://harsimar17.github.io/Deutsch-Vocab-Helper/german_vocab.json";
 
 // Expected JSON shape:
 // { levels: { A1|A2|B1: {
 //     nouns: { der: [{de,en,example}], die: [...], das: [...] },
 //     adjectives: [{de,en}], verbs: [{de,en}],
+//     separable_verbs: [{de,en,prefix,example}],   // trennbare Verben
 //     function_words: [{de,en}], phrases: [{de,en}]
 // } } }
 function buildDataFromJson(json) {
@@ -141,7 +154,7 @@ function buildDataFromJson(json) {
   let id = 0;
   const levels = ["A1", "A2", "B1"];
   const nounCats = ["der", "die", "das"];
-  const plainCats = { adjectives: "adj", verbs: "verb", function_words: "func", phrases: "phrase" };
+  const plainCats = { adjectives: "adj", verbs: "verb", separable_verbs: "sep", function_words: "func", phrases: "phrase" };
 
   levels.forEach((lvl) => {
     const levelData = json && json.levels && json.levels[lvl];
@@ -157,7 +170,7 @@ function buildDataFromJson(json) {
     Object.keys(plainCats).forEach((key) => {
       const cat = plainCats[key];
       (levelData[key] || []).forEach((entry) => {
-        items.push({ id: id++, de: entry.de, en: entry.en, cat, lvl, example: entry.example || null });
+        items.push({ id: id++, de: entry.de, en: entry.en, cat, lvl, example: entry.example || null, prefix: entry.prefix || null });
       });
     });
   });
@@ -165,7 +178,7 @@ function buildDataFromJson(json) {
   return items;
 }
 
-const CATS = ["der", "die", "das", "adj", "verb", "func", "phrase"];
+const CATS = ["der", "die", "das", "adj", "verb", "sep", "func", "phrase"];
 const LEVELS = ["A1", "A2", "B1"];
 // A word drilled in the Review tab (or missed anywhere) leaves the review list
 // after this many correct answers; a fresh miss resets that progress to 0.
@@ -1692,6 +1705,291 @@ function MistakesReview({ mistakes, allData, direction, onResult, onClearAll, ge
   );
 }
 
+// ---------- TRENNBARE VERBEN (separable verbs) ----------
+// Drills the mechanic that trips learners up: the separable prefix jumps to the
+// end of the clause. We show the sentence with the prefix blanked out and ask
+// which prefix belongs there.
+const SEP_PREFIXES = [
+  "auf", "an", "aus", "ein", "mit", "nach", "vor", "zu", "ab", "um",
+  "zurück", "weg", "hin", "her", "fest", "los", "teil", "statt", "durch",
+  "heraus", "zusammen", "vorbei", "fern", "bei", "mit",
+];
+const SEP_COMMON = ["auf", "an", "aus", "ein", "mit", "nach", "vor", "zu", "ab", "um"];
+
+function sepParts(card) {
+  let de = String(card.de || "").trim();
+  de = de.replace(/^sich\s+/i, "").replace(/\s+(mit|auf|an|über|für|zu|nach|von|in|bei|um)$/i, "").trim();
+  const inf = de.split(" ")[0] || de;
+  const prefix = String(
+    card.prefix || SEP_PREFIXES.find((p) => inf.toLowerCase().startsWith(p)) || ""
+  ).toLowerCase();
+  return { inf, prefix };
+}
+
+function sepCloze(card, prefix) {
+  const ex = String(card.example || "").trim();
+  if (!ex || !prefix) return null;
+  const esc = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp("(^|[\\s(])(" + esc + ")(?=[\\s.,!?;:)]|$)", "gi");
+  let m, last = null;
+  while ((m = re.exec(ex))) last = m;
+  if (!last) return null;
+  const at = last.index + last[1].length;
+  return { before: ex.slice(0, at), after: ex.slice(at + prefix.length), answer: ex.substr(at, prefix.length) };
+}
+
+function makeSepQuestion(playable, avoidId) {
+  if (!playable || playable.length === 0) return null;
+  const src = playable.length > 1 && avoidId != null ? playable.filter((d) => d.id !== avoidId) : playable;
+  const card = src[Math.floor(Math.random() * src.length)];
+  const { prefix } = sepParts(card);
+  const cloze = sepCloze(card, prefix);
+  const distractors = shuffle(SEP_COMMON.filter((p) => p !== prefix)).slice(0, 3);
+  const options = shuffle([prefix, ...distractors]);
+  return { card, answer: prefix, cloze, options };
+}
+
+function SeparableVerbs({ pool, onResult, geminiKey }) {
+  const playable = useMemo(() => {
+    return pool.filter((d) => {
+      if (d.cat !== "sep") return false;
+      const { prefix } = sepParts(d);
+      return prefix && sepCloze(d, prefix);
+    });
+  }, [pool]);
+
+  const [q, setQ] = useState(() => makeSepQuestion(playable));
+  const [picked, setPicked] = useState(null);
+  const [score, setScore] = useState({ right: 0, total: 0 });
+
+  React.useEffect(() => {
+    setQ(makeSepQuestion(playable));
+    setPicked(null);
+    setScore({ right: 0, total: 0 });
+  }, [playable.length]);
+
+  if (playable.length < 4) {
+    return (
+      <p style={{ textAlign: "center", color: "var(--ink-soft)", maxWidth: "min(440px, 92vw)", margin: "0 auto", lineHeight: 1.7 }}>
+        Not enough separable verbs in the current selection — turn on the <strong>trenn.</strong> category (and a level or two) in settings ▸.
+      </p>
+    );
+  }
+  if (!q || !q.cloze) return null;
+
+  const { inf } = sepParts(q.card);
+
+  const choose = (opt) => {
+    if (picked) return;
+    setPicked(opt);
+    const correct = opt === q.answer;
+    setScore((s) => ({ right: s.right + (correct ? 1 : 0), total: s.total + 1 }));
+    onResult && onResult(q.card.id, correct);
+  };
+  const nextQ = () => {
+    setQ(makeSepQuestion(playable, q.card.id));
+    setPicked(null);
+  };
+
+  const accent = CATEGORY_META.sep.color;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px" }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "var(--ink-faint)" }}>
+        SCORE {score.right} / {score.total}
+        <span style={{ marginLeft: "12px", color: "#b0a888" }}>· {playable.length} verbs</span>
+      </div>
+
+      <div
+        style={{
+          position: "relative",
+          width: "min(440px, 92vw)",
+          background: "linear-gradient(170deg, #FEFBF3 0%, #F7F1E1 100%)",
+          border: "1px solid #e6dcc4",
+          borderRadius: "16px",
+          boxShadow: "var(--shadow-card)",
+          padding: "26px 22px",
+          textAlign: "center",
+        }}
+      >
+        {picked && (
+          <button
+            onClick={nextQ}
+            aria-label="next question"
+            style={{
+              ...navBtnStyle,
+              position: "absolute", right: "14px", top: "18px", zIndex: 5,
+              padding: "8px 14px", fontSize: "11px", borderRadius: "999px",
+              boxShadow: "0 8px 20px -6px rgba(60,50,20,.7)",
+            }}
+          >
+            next ›
+          </button>
+        )}
+        <div style={{ marginBottom: "14px" }}><CatChip cat="sep" /></div>
+        <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "15px", color: "var(--ink-soft)", marginBottom: "12px" }}>
+          {picked ? `${inf} — ${q.card.en}` : q.card.en}
+        </div>
+        <div style={{ fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "21px", lineHeight: 1.7, color: "var(--ink)" }}>
+          {q.cloze.before}
+          <span
+            style={{
+              display: "inline-block", minWidth: "68px", margin: "0 4px", padding: "0 8px 2px",
+              borderBottom: `2px solid ${picked ? accent : "var(--ink-faint)"}`,
+              color: picked ? accent : "transparent", fontWeight: 700,
+            }}
+          >
+            {picked ? q.cloze.answer : " "}
+          </span>
+          {q.cloze.after}
+        </div>
+        {picked && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", marginTop: "14px" }}>
+            <SpeakButton text={(q.cloze.before + q.cloze.answer + q.cloze.after).trim() || q.card.example} size={30} />
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: picked === q.answer ? "#3F7A55" : "#A5354A" }}>
+              {picked === q.answer ? "richtig" : `→ ${q.answer}`}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-faint)" }}>
+        which prefix goes in the gap?
+      </div>
+
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center", width: "min(440px, 92vw)" }}>
+        {q.options.map((opt) => {
+          const meta = CATEGORY_META.sep;
+          let bg = meta.color + "0d";
+          let color = meta.color;
+          let border = meta.color + "66";
+          let shadow = "none";
+          if (picked) {
+            if (opt === q.answer) { bg = meta.color; color = "#FCF8EE"; border = meta.color; shadow = `0 10px 24px -10px ${meta.color}`; }
+            else if (opt === picked) { bg = "#A5354A"; color = "#FCF8EE"; border = "#A5354A"; shadow = "0 10px 24px -10px #A5354A"; }
+            else { bg = "transparent"; color = "var(--ink-faint)"; border = "#e2d8c0"; }
+          }
+          return (
+            <button
+              key={opt}
+              onClick={() => choose(opt)}
+              style={{
+                fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "19px",
+                padding: "12px 24px", borderRadius: "12px",
+                border: `1.5px solid ${border}`, background: bg, color, boxShadow: shadow,
+                cursor: picked ? "default" : "pointer",
+              }}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+
+      {picked && <AiSentence card={q.card} apiKey={geminiKey} />}
+    </div>
+  );
+}
+
+// ---------- TAB BAR ----------
+// Horizontally scrollable on narrow screens (iOS momentum scroll, snap points),
+// and collapsible: the ‹ toggle retracts the whole strip to the left so only the
+// current tab shows while you're focused on learning.
+const TABS = [
+  { id: "flash", label: "Cards" },
+  { id: "quiz", label: "Quiz" },
+  { id: "articles", label: "Articles" },
+  { id: "sep", label: "Trennbare Verben" },
+  { id: "cloze", label: "Fill-in" },
+  { id: "mistakes", label: "Review" },
+];
+
+function TabBar({ mode, setMode, mistakeCount }) {
+  const [open, setOpen] = useState(true);
+  const stripRef = React.useRef(null);
+  const active = TABS.find((t) => t.id === mode) || TABS[0];
+
+  React.useEffect(() => {
+    if (!open || !stripRef.current) return;
+    const el = stripRef.current.querySelector('[data-on="1"]');
+    if (el && el.scrollIntoView) el.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [mode, open]);
+
+  const tabLabel = (t) => (t.id === "mistakes" && mistakeCount ? `${t.label} ${mistakeCount}` : t.label);
+  const pill = (on, isMistakes) => ({
+    flex: "0 0 auto",
+    scrollSnapAlign: "center",
+    whiteSpace: "nowrap",
+    fontFamily: "var(--font-mono)",
+    fontSize: "10px",
+    fontWeight: 500,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase",
+    padding: "9px 15px",
+    border: "none",
+    borderRadius: "999px",
+    background: on ? "linear-gradient(180deg, #35302a 0%, #2b2620 100%)" : "transparent",
+    color: on ? "#FCF8EE" : isMistakes && mistakeCount ? "#A5354A" : "var(--ink-soft)",
+    boxShadow: on ? "0 6px 16px -8px rgba(60,50,20,.55)" : "none",
+    cursor: "pointer",
+  });
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "6px", width: "min(460px, 94vw)", alignSelf: "center" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label={open ? "collapse tabs" : "expand tabs"}
+        aria-expanded={open}
+        style={{
+          flexShrink: 0, width: "34px", height: "34px", borderRadius: "999px",
+          fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: 1,
+          border: "1px solid var(--line)", background: "var(--paper-raised)",
+          color: "var(--ink-soft)", cursor: "pointer",
+        }}
+      >
+        {open ? "‹" : "›"}
+      </button>
+
+      {!open && (
+        <button onClick={() => setOpen(true)} style={{ ...pill(true, false), padding: "9px 18px" }}>
+          {tabLabel(active)}
+        </button>
+      )}
+
+      <div
+        ref={stripRef}
+        className="tabstrip"
+        style={{
+          display: "flex",
+          gap: "3px",
+          alignItems: "center",
+          flex: 1,
+          minWidth: 0,
+          padding: open ? "3px" : "0",
+          background: open ? "#00000008" : "transparent",
+          border: `1px solid ${open ? "var(--line)" : "transparent"}`,
+          borderRadius: "999px",
+          overflowX: "auto",
+          scrollSnapType: "x proximity",
+          maxWidth: open ? "1200px" : "0px",
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? "auto" : "none",
+          transition: "max-width .34s cubic-bezier(.4,0,.2,1), opacity .18s ease, padding .2s ease",
+        }}
+      >
+        {TABS.map((t) => {
+          const on = mode === t.id;
+          return (
+            <button key={t.id} data-on={on ? "1" : "0"} onClick={() => setMode(t.id)} style={pill(on, t.id === "mistakes")}>
+              {tabLabel(t)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // A single fixed record shared by every browser/device — since this trainer
 // is for one person only, there's no need for a separate identity per browser.
 const PROGRESS_DOC_ID = "harsimar-progress";
@@ -1763,11 +2061,13 @@ function App() {
     let cancelled = false;
     setAllData(null);
     setDataError(null);
-    fetch(VOCAB_DATA_URL)
-      .then((res) => {
+    const fetchJson = (url) =>
+      fetch(url).then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status} fetching vocab data`);
         return res.json();
-      })
+      });
+    fetchJson(VOCAB_DATA_URL)
+      .catch(() => fetchJson(VOCAB_DATA_URL_FALLBACK))
       .then((json) => {
         if (cancelled) return;
         const items = buildDataFromJson(json);
@@ -1955,7 +2255,7 @@ function App() {
               : LEVELS.filter((lv) => levels.includes(lv)).join("  +  ")}
           </div>
            <div style={{ fontSize: "13px", fontStyle: "italic", color: "var(--ink-soft)", marginTop: "8px" }}>
-            {levelData.length} cards — nouns, verbs, adjectives, connectors &amp; phrases
+            {levelData.length} cards — nouns, verbs, separable verbs, adjectives, connectors &amp; phrases
           </div>
           <div style={{ width: "48px", height: "2px", background: "var(--accent)", opacity: 0.5, borderRadius: "2px", margin: "18px auto 0" }} />
         </div>
@@ -1995,47 +2295,13 @@ function App() {
           </div>
         )}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)",
-            gap: "3px",
-            padding: "3px",
-            background: "#00000008",
-            border: "1px solid var(--line)",
-            borderRadius: "999px",
-            alignSelf: "center",
-            width: "min(440px, 92vw)",
-          }}
-        >
-          {["flash", "quiz", "articles", "cloze", "mistakes"].map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "10px",
-                fontWeight: 500,
-                letterSpacing: "0.02em",
-                textTransform: "uppercase",
-                padding: "9px 3px",
-                border: "none",
-                borderRadius: "999px",
-                background: mode === m ? "linear-gradient(180deg, #35302a 0%, #2b2620 100%)" : "transparent",
-                color: mode === m ? "#FCF8EE" : m === "mistakes" && mistakeCount ? "#A5354A" : "var(--ink-soft)",
-                boxShadow: mode === m ? "0 6px 16px -8px rgba(60,50,20,.55)" : "none",
-                cursor: "pointer",
-              }}
-            >
-              {m === "flash" ? "Cards" : m === "quiz" ? "Quiz" : m === "articles" ? "Articles" : m === "cloze" ? "Fill-in" : mistakeCount ? `Review ${mistakeCount}` : "Review"}
-            </button>
-          ))}
-        </div>
+        <TabBar mode={mode} setMode={setMode} mistakeCount={mistakeCount} />
 
         <div style={{ marginTop: "6px", animation: "cardIn .35s ease both" }} key={mode}>
           {mode === "flash" && <Flashcards pool={pool} allData={allData} direction={direction} noRepeat={noRepeat} onResult={recordResult} geminiKey={geminiKey} />}
           {mode === "quiz" && <Quiz pool={pool} allTime={allTime} onAnswer={handleAnswer} onResult={recordResult} sessions={sessions} onSaveSession={handleSaveSession} onClearHistory={handleClearHistory} direction={direction} noRepeat={noRepeat} geminiKey={geminiKey} />}
           {mode === "articles" && <ArticleQuiz pool={pool} noRepeat={noRepeat} onResult={recordResult} geminiKey={geminiKey} />}
+          {mode === "sep" && <SeparableVerbs pool={pool} onResult={recordResult} geminiKey={geminiKey} />}
           {mode === "cloze" && <ClozeQuiz pool={pool} noRepeat={noRepeat} onResult={recordResult} geminiKey={geminiKey} />}
           {mode === "mistakes" && <MistakesReview mistakes={mistakes} allData={allData} direction={direction} onResult={recordResult} onClearAll={clearAllMistakes} geminiKey={geminiKey} />}
         </div>

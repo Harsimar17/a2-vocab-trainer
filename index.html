@@ -180,9 +180,6 @@ function buildDataFromJson(json) {
 
 const CATS = ["der", "die", "das", "adj", "verb", "sep", "func", "phrase"];
 const LEVELS = ["A1", "A2", "B1"];
-// A word drilled in the Review tab (or missed anywhere) leaves the review list
-// after this many correct answers; a fresh miss resets that progress to 0.
-const REVIEW_CLEARS = 2;
 const LEVEL_META = { A1: "BREAKTHROUGH", A2: "WAYSTAGE", B1: "THRESHOLD" };
 
 function shuffle(arr) {
@@ -1531,10 +1528,11 @@ function ClozeQuiz({ pool, noRepeat, onResult, geminiKey }) {
 // ---------- REVIEW (re-test past mistakes) ----------
 // Drills the words in `mistakes` — anything missed in Quiz / Articles / Fill-in,
 // or flagged with "✗ review this" on a flashcard. Same 4-option meaning test as
-// Quiz; a word leaves the list once answered right REVIEW_CLEARS times, and any
-// fresh miss (in this tab or elsewhere) resets it. The list ignores the level /
-// category filters so mistakes never silently disappear from view.
-function MistakesReview({ mistakes, allData, direction, onResult, onClearAll, geminiKey }) {
+// Quiz. Nothing ever leaves the list on its own: a word stays until you remove
+// it yourself (per word, or "clear whole list"), so you can revise as long as
+// you like. The list ignores the level / category filters so mistakes never
+// silently disappear from view.
+function MistakesReview({ mistakes, allData, direction, onResult, onRemove, onClearAll, geminiKey }) {
   const byId = useMemo(() => Object.fromEntries(allData.map((d) => [d.id, d])), [allData]);
 
   // Snapshot the list at mount (the tab remounts on every switch via key={mode}),
@@ -1572,7 +1570,7 @@ function MistakesReview({ mistakes, allData, direction, onResult, onClearAll, ge
   if (total === 0) {
     return (
       <p style={{ textAlign: "center", color: "var(--ink-soft)", maxWidth: "min(440px, 92vw)", margin: "0 auto", lineHeight: 1.7 }}>
-        Nothing to review yet. Words you miss in <strong>Quiz</strong>, <strong>Articles</strong> or <strong>Fill-in</strong> — or flag with <strong>✗&nbsp;review&nbsp;this</strong> on a card — collect here so you can drill them until they stick.
+        Nothing to review yet. Words you miss in <strong>Quiz</strong>, <strong>Articles</strong>, <strong>Fill-in</strong> or <strong>Trennbare Verben</strong> — or flag with <strong>✗&nbsp;review&nbsp;this</strong> on a card — collect here and stay until <em>you</em> take them off. Revise them as often as you like.
       </p>
     );
   }
@@ -1581,18 +1579,21 @@ function MistakesReview({ mistakes, allData, direction, onResult, onClearAll, ge
   if (done) {
     const answered = Object.keys(results).length;
     const gotRight = Object.values(results).filter(Boolean).length;
-    const stillTricky = queue.filter((id) => mistakes[id]);
+    const missedThisRound = queue.filter((id) => results[id] === false && mistakes[id]);
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "32px 0" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "var(--ink-faint)" }}>
           THIS ROUND {gotRight} / {answered} right
         </div>
         <div style={{ fontFamily: "var(--font-serif)", fontSize: "22px", color: "var(--ink)", textAlign: "center" }}>
-          {`${total} word${total === 1 ? "" : "s"} still on the list`}
+          {`${total} word${total === 1 ? "" : "s"} on the list`}
+        </div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", color: "var(--ink-faint)", textAlign: "center", maxWidth: "min(420px, 90vw)", lineHeight: 1.6 }}>
+          words stay here until you take them off — revise as long as you like
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
-          {stillTricky.length > 0 && (
-            <button onClick={() => startRound(stillTricky)} style={navBtnStyle}>↻ keep drilling ({stillTricky.length})</button>
+          {missedThisRound.length > 0 && (
+            <button onClick={() => startRound(missedThisRound)} style={navBtnStyle}>↻ redo the {missedThisRound.length} I missed</button>
           )}
           <button onClick={() => startRound()} style={navBtnStyle}>⟲ review all {total}</button>
         </div>
@@ -1621,7 +1622,6 @@ function MistakesReview({ mistakes, allData, direction, onResult, onClearAll, ge
   };
 
   const info = mistakes[card.id] || {};
-  const clearsLeft = Math.max(0, REVIEW_CLEARS - (info.cleared || 0));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "18px" }}>
@@ -1641,7 +1641,7 @@ function MistakesReview({ mistakes, allData, direction, onResult, onClearAll, ge
           {picked && <button onClick={next} style={navBtnStyle}>next ›</button>}
         </div>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-faint)", marginTop: "10px" }}>
-          {info.wrong ? `missed ${info.wrong}×  ·  ` : ""}{clearsLeft} more correct to clear
+          {info.wrong ? `missed ${info.wrong}×` : "flagged"}{info.right ? `  ·  got it ${info.right}×` : ""}
         </div>
       </div>
 
@@ -1689,18 +1689,42 @@ function MistakesReview({ mistakes, allData, direction, onResult, onClearAll, ge
 
       {picked && <AiSentence card={card} apiKey={geminiKey} />}
 
-      <button
-        onClick={() => {
-          if (window.confirm("Clear the whole review list?")) onClearAll();
-        }}
-        style={{
-          fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
-          color: "#A5354A", background: "transparent", border: "1px solid #A5354A", borderRadius: "10px",
-          padding: "4px 10px", cursor: "pointer",
-        }}
-      >
-        clear review list
-      </button>
+      {picked && (
+        <button
+          onClick={() => { onRemove && onRemove(card.id); next(); }}
+          style={{
+            ...navBtnStyle,
+            background: "transparent", color: "#3F7A55", border: "1px solid #3F7A55", boxShadow: "none",
+          }}
+        >
+          ✓ I know this — take it off the list
+        </button>
+      )}
+
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center", marginTop: "6px" }}>
+        <button
+          onClick={() => startRound()}
+          style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "var(--ink-soft)", background: "transparent", border: "1px solid var(--line)", borderRadius: "10px",
+            padding: "4px 10px", cursor: "pointer",
+          }}
+        >
+          ⟲ reshuffle round
+        </button>
+        <button
+          onClick={() => {
+            if (window.confirm(`Clear all ${total} words from the review list? This can't be undone.`)) onClearAll();
+          }}
+          style={{
+            fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "#A5354A", background: "transparent", border: "1px solid #A5354A", borderRadius: "10px",
+            padding: "4px 10px", cursor: "pointer",
+          }}
+        >
+          clear whole list
+        </button>
+      </div>
     </div>
   );
 }
@@ -2004,7 +2028,8 @@ function App() {
   const [allTime, setAllTime] = useState({ right: 0, total: 0 });
   const [sessions, setSessions] = useState([]);
 
-  // Words to re-test in the Review tab: { [cardId]: { wrong, cleared, ts } }.
+  // Words to re-test in the Review tab: { [cardId]: { wrong, right, ts } }.
+  // Only removed by explicit user action — never on a timer or a streak.
   // Kept in localStorage — this trainer is single-user and the list is small.
   const [mistakes, setMistakes] = useState(() => {
     try {
@@ -2088,25 +2113,34 @@ function App() {
   const pool = useMemo(() => levelData.filter((d) => activeCats.includes(d.cat)), [levelData, activeCats]);
   const mistakeCount = Object.keys(mistakes).length;
 
-  // One handler feeds the review list from every mode: a miss adds/refreshes the
-  // word, a hit chips away at it until it's cleared out.
+  // Every mode feeds the review list through here. A miss adds the word (or bumps
+  // its miss count); a hit only records that it went right. Nothing is ever
+  // removed automatically — the learner decides when a word comes off the list
+  // (per word in the Review tab, or "clear whole list").
   const recordResult = useCallback((cardId, correct) => {
     setMistakes((prev) => {
       const cur = prev[cardId];
       if (correct) {
-        if (!cur) return prev; // not on the list — nothing to track
-        const cleared = (cur.cleared || 0) + 1;
-        if (cleared >= REVIEW_CLEARS) {
-          const nextState = { ...prev };
-          delete nextState[cardId];
-          return nextState;
-        }
-        return { ...prev, [cardId]: { ...cur, cleared } };
+        if (!cur) return prev; // not on the list — a hit alone never adds it
+        return { ...prev, [cardId]: { ...cur, right: (cur.right || 0) + 1 } };
       }
       return {
         ...prev,
-        [cardId]: { wrong: ((cur && cur.wrong) || 0) + 1, cleared: 0, ts: Date.now() },
+        [cardId]: {
+          wrong: ((cur && cur.wrong) || 0) + 1,
+          right: (cur && cur.right) || 0,
+          ts: Date.now(),
+        },
       };
+    });
+  }, []);
+
+  const removeMistake = useCallback((cardId) => {
+    setMistakes((prev) => {
+      if (!prev[cardId]) return prev;
+      const next = { ...prev };
+      delete next[cardId];
+      return next;
     });
   }, []);
 
@@ -2303,7 +2337,7 @@ function App() {
           {mode === "articles" && <ArticleQuiz pool={pool} noRepeat={noRepeat} onResult={recordResult} geminiKey={geminiKey} />}
           {mode === "sep" && <SeparableVerbs pool={pool} onResult={recordResult} geminiKey={geminiKey} />}
           {mode === "cloze" && <ClozeQuiz pool={pool} noRepeat={noRepeat} onResult={recordResult} geminiKey={geminiKey} />}
-          {mode === "mistakes" && <MistakesReview mistakes={mistakes} allData={allData} direction={direction} onResult={recordResult} onClearAll={clearAllMistakes} geminiKey={geminiKey} />}
+          {mode === "mistakes" && <MistakesReview mistakes={mistakes} allData={allData} direction={direction} onResult={recordResult} onRemove={removeMistake} onClearAll={clearAllMistakes} geminiKey={geminiKey} />}
         </div>
       </div>
     </div>

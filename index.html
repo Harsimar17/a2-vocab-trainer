@@ -1180,6 +1180,34 @@ function WriteMode({ pool, srs, daily, focus, onGrade, geminiKey }) {
     if (ref.current && !res) ref.current.focus();
   }, [i, res, queue.length]);
 
+  // Enter always works, even after focus has left the text box: first press
+  // checks the answer, the next press moves to the following word.
+  const check = () => {
+    const c = queue[i];
+    if (!c || res) return;
+    const r = checkDe(c, val);
+    if (r.verdict === "empty") return;
+    setRes(r);
+    onGrade(c, r.verdict === "correct" ? "good" : "again");
+    setTyped((d) => d + 1);
+  };
+  const advance = () => { setRes(null); setVal(""); setI((x) => x + 1); };
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Enter" || e.isComposing) return;
+      // Ignore Enter aimed at some other control (a button, the settings key field);
+      // only our answer box, or nothing focused, drives the shortcut.
+      const el = e.target;
+      if (el && el !== ref.current && /^(BUTTON|INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      if (i >= queue.length) return;
+      e.preventDefault();
+      if (res) advance(); else check();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue, i, val, res]);
+
   if (pool.length === 0) {
     return <p style={srsNote}>No categories selected — turn some on in settings ▸.</p>;
   }
@@ -1202,16 +1230,6 @@ function WriteMode({ pool, srs, daily, focus, onGrade, geminiKey }) {
   const close = res && res.verdict === "close";
   const tone = ok ? "#3F7A55" : close ? "#8A6A2B" : "#A5354A";
 
-  const submit = () => {
-    if (res) return;
-    const r = checkDe(card, val);
-    if (r.verdict === "empty") return;
-    setRes(r);
-    onGrade(card, r.verdict === "correct" ? "good" : "again");
-    setTyped((d) => d + 1);
-  };
-  const next = () => { setRes(null); setVal(""); setI((x) => x + 1); };
-
   return (
     <div style={srsCol}>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", letterSpacing: "0.1em", color: "#8a8372" }}>
@@ -1232,7 +1250,6 @@ function WriteMode({ pool, srs, daily, focus, onGrade, geminiKey }) {
         ref={ref}
         value={val}
         onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") { if (res) next(); else submit(); } }}
         readOnly={!!res}
         placeholder="dein Deutsch…"
         autoCapitalize="off"
@@ -1268,7 +1285,7 @@ function WriteMode({ pool, srs, daily, focus, onGrade, geminiKey }) {
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-faint)", marginTop: "-6px" }}>
             no umlaut key? tap above — or just type ae / oe / ue / ss
           </div>
-          <button onClick={submit} style={navBtnStyle}>check ›</button>
+          <button onClick={check} style={navBtnStyle}>check › <span style={{ opacity: 0.6 }}>⏎</span></button>
         </React.Fragment>
       )}
 
@@ -1292,7 +1309,7 @@ function WriteMode({ pool, srs, daily, focus, onGrade, geminiKey }) {
           )}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <SpeakButton text={card.de} />
-            <button onClick={next} style={navBtnStyle}>next ›</button>
+            <button onClick={advance} style={navBtnStyle}>next › <span style={{ opacity: 0.6 }}>⏎</span></button>
           </div>
           <AiSentence card={card} apiKey={geminiKey} />
         </div>
